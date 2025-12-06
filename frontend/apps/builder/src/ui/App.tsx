@@ -46,6 +46,8 @@ export function App() {
   const [config] = useState<AppConfig>(mockAppConfig);
   const [components, setComponents] = useState(() => mockPages[0]?.components ?? []);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
+  const [dropHover, setDropHover] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -95,6 +97,21 @@ export function App() {
     });
   };
   const onDragEnd = () => setDragId(null);
+  const onCanvasDrop = () => {
+    if (!dragPayload) return;
+    if (dragPayload.kind === 'control') {
+      addControl(dragPayload.name);
+    } else {
+      addLayout(dragPayload.name);
+    }
+    setDragPayload(null);
+    setDropHover(false);
+  };
+  const onCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropHover(true);
+  };
+  const onCanvasDragLeave = () => setDropHover(false);
 
   return (
     <div className="layout">
@@ -142,6 +159,8 @@ export function App() {
                             title={c}
                             aria-label={c}
                             onClick={() => addControl(c)}
+                            draggable
+                            onDragStart={() => setDragPayload({ kind: 'control', name: c })}
                           >
                             <span className="icon">{controlIcon[c] ?? '🔧'}</span>
                             <span className="label">{c}</span>
@@ -177,6 +196,8 @@ export function App() {
                           title={w}
                           aria-label={w}
                           onClick={() => addControl(w)}
+                          draggable
+                          onDragStart={() => setDragPayload({ kind: 'control', name: w })}
                         >
                           <span className="icon">{controlIcon[w] ?? '✨'}</span>
                           <span className="label">{w}</span>
@@ -237,7 +258,12 @@ export function App() {
 
           <div className="canvas">
             {mainTab === 'design' ? (
-              <div className="canvas-inner">
+              <div
+                className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
+                onDragOver={onCanvasDragOver}
+                onDragLeave={onCanvasDragLeave}
+                onDrop={onCanvasDrop}
+              >
                 <p className="hint">Add controls from the toolbox; they appear below.</p>
                 <div className="chip-row">
                   <span className="chip">App: {config.appId}</span>
