@@ -50,7 +50,7 @@ export const mockAppConfig: AppConfig = {
   entities: entities.map((e) => e.name),
   connectors: connectors.map((c) => c.id),
   pages: pages.map((p) => p.name),
-  widgets: ['TextInput', 'DataTable'],
+  widgets: ['TextInput', 'DataTable', 'Autocomplete', 'MultiSelect', 'Stepper', 'FileUploader', 'DateRangePicker'],
   workflows: ['VehicleLookupFlow'],
   themeRef: 'Default',
   permissionsRef: 'Default',

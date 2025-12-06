@@ -50,11 +50,11 @@ See also:
 
 ### UI Builder
 - Composition: pages, tabs, sections; responsive layout.
-- Controls: text, textarea, select/combo, radio, checkbox, button, table, date/time, file upload, etc.
+- Controls: text, textarea, select/combo, radio, checkbox, button, table, date/time, file upload, tabs, etc.
 - Data binding: control value ↔ state/entity fields/connectors; validation with inline feedback.
 - Events → actions mapping (onChange/onClick/onMount, etc.): call connector, set state, navigate, show modal, emit signal, start/advance workflow, run validator/transformer.
 - Custom widgets: compose controls + logic; define inputs/outputs/events; versioned and reusable.
-- Built-in widgets: autocomplete, multi-select, data table with server pagination/sorting.
+- Built-in widgets: autocomplete, multi-select, data table with server pagination/sorting, stepper, file uploader, date range picker.
 
 ### Connectors & Data
 - REST/GraphQL first; storage (file upload/download with signed URLs); DB via backend proxy.

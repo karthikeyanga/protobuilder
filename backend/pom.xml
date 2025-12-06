@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.protobuilder</groupId>
+  <artifactId>backend</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>ProtoBuilder Backend</name>
+
+  <modules>
+    <module>plugin-spi</module>
+    <module>plugin-samples</module>
+    <module>runtime-core</module>
+    <module>workflow-kogito-core</module>
+    <module>conformance-tests</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <profiles>
+    <profile>
+      <id>quarkus</id>
+      <modules>
+        <module>runtime-quarkus</module>
+        <module>workflow-kogito-quarkus</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spring</id>
+      <modules>
+        <module>runtime-spring</module>
+        <module>workflow-kogito-spring</module>
+      </modules>
+    </profile>
+  </profiles>
+</project>
+

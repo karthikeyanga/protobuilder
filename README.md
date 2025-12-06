@@ -7,6 +7,7 @@ Low-code service to model entities, build UIs, wire connectors, and orchestrate 
 - Architecture: [docs/architecture/architecture.md](docs/architecture/architecture.md)
 - Config schemas: [docs/schemas/](docs/schemas/)
 - Frontend workspace lives under `frontend/` (builder + runtime + schema package)
+- Backend scaffold will live under `backend/` (Maven, Quarkus/Spring profiles)
 
 Key decisions (v1):
 - Java 21; Spring Boot 3 and Quarkus 3 (pom-only profile switch; default Quarkus)

@@ -16,6 +16,7 @@ npm-debug.log*
 coverage
 .idea/
 .vscode/
+target/
 
 # Frontend workspace
 frontend/node_modules

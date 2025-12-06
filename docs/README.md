@@ -17,6 +17,8 @@ Welcome to the ProtoBuilder docs. Start here to explore product requirements, ar
   - [schemas/workflow.md](schemas/workflow.md)
   - [schemas/theme.md](schemas/theme.md)
   - [schemas/permissions.md](schemas/permissions.md)
+- Frontend workspace: see [../frontend/README.md](../frontend/README.md)
+- Backend scaffold: see [../backend/README.md](../backend/README.md)
 
 Notes:
 - Backend supports Spring Boot 3 and Quarkus 3 (pom-only profile switch).
