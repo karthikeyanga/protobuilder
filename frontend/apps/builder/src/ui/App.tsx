@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AppConfig } from '@protobuilder/schema';
 import { mockAppConfig, mockPages, mockConnectors } from '../mocks/mock-app';
 
 type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
 type MainTab = 'design' | 'code';
+type RightTab = 'properties' | 'ai';
 
 const controlIcon: Record<string, string> = {
   Text: '📝',
@@ -50,9 +51,21 @@ export function App() {
   const [dropHover, setDropHover] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
+  const [rightTab, setRightTab] = useState<RightTab>('properties');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [bottomCollapsed, setBottomCollapsed] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(260);
+  const [rightWidth, setRightWidth] = useState(320);
+  const [bottomHeight, setBottomHeight] = useState(160);
+  const [resizing, setResizing] = useState<{ side: 'left' | 'right' | 'bottom' | null }>({ side: null });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [toolboxOpen, setToolboxOpen] = useState<Record<string, boolean>>({
+    'Basic UI': true,
+    Layout: true,
+    'Alignment & Layout': true,
+    'Built-in Widgets': true
+  });
 
   const codePreview = useMemo(
     () =>
@@ -113,6 +126,101 @@ export function App() {
   };
   const onCanvasDragLeave = () => setDropHover(false);
 
+  // resize handlers
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (resizing.side === 'left') {
+        setLeftWidth((w) => Math.min(400, Math.max(160, w + e.movementX)));
+      } else if (resizing.side === 'right') {
+        setRightWidth((w) => Math.min(400, Math.max(200, w - e.movementX)));
+      } else if (resizing.side === 'bottom') {
+        setBottomHeight((h) => Math.min(300, Math.max(100, h - e.movementY)));
+      }
+    };
+    const onUp = () => setResizing({ side: null });
+    if (resizing.side) {
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizing]);
+
+  const updateSelectedProp = (key: string, value: unknown) => {
+    setComponents((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, props: { ...(c.props ?? {}), [key]: value } } : c))
+    );
+  };
+
+  const selectedComponent = components.find((c) => c.id === selectedId) || null;
+
+  const renderControl = (c: typeof components[number]) => {
+    const common = { className: 'control-preview' };
+    switch (c.widgetRef) {
+      case 'Text':
+      case 'TextInput':
+        return <input {...common} placeholder={String(c.props?.placeholder ?? 'Text input')} />;
+      case 'TextArea':
+        return <textarea {...common} placeholder={String(c.props?.placeholder ?? 'Textarea')} rows={3} />;
+      case 'Select':
+      case 'ComboBox':
+      case 'MultiSelect':
+        return (
+          <select {...common}>
+            <option>Option 1</option>
+            <option>Option 2</option>
+          </select>
+        );
+      case 'Radio':
+        return (
+          <div className="control-preview radio-group">
+            <label><input type="radio" name={c.id} /> One</label>
+            <label><input type="radio" name={c.id} /> Two</label>
+          </div>
+        );
+      case 'Checkbox':
+        return (
+          <label className="control-preview">
+            <input type="checkbox" /> Checkbox
+          </label>
+        );
+      case 'Date':
+      case 'DateRangePicker':
+        return <input {...common} type="date" />;
+      case 'Button':
+        return <button className="control-btn">{c.props?.label ?? 'Button'}</button>;
+      case 'Table':
+      case 'DataTable':
+        return (
+          <table className="control-table">
+            <thead><tr><th>A</th><th>B</th></tr></thead>
+            <tbody><tr><td>Row1</td><td>Val</td></tr></tbody>
+          </table>
+        );
+      case 'FileUpload':
+      case 'FileUploader':
+        return <input {...common} type="file" />;
+      case 'Tabs':
+        return (
+          <div className="control-tabs">
+            <div className="tab">Tab 1</div>
+            <div className="tab">Tab 2</div>
+          </div>
+        );
+      case 'Stepper':
+        return <div className="control-stepper"><span className="dot active" /> <span className="dot" /> <span className="dot" /></div>;
+      case 'Grid-2col':
+      case 'Grid-3col':
+        return <div className={`control-grid ${c.widgetRef === 'Grid-2col' ? 'cols-2' : 'cols-3'}`}><div /> <div /> {c.widgetRef === 'Grid-3col' && <div />}</div>;
+      case 'TableLayout':
+        return <div className="control-tablelayout">Table layout placeholder</div>;
+      default:
+        return <div className="control-preview">{c.widgetRef}</div>;
+    }
+  };
+
   return (
     <div className="layout">
       <header className="topbar">
@@ -125,7 +233,7 @@ export function App() {
       </header>
 
       <div className="main">
-        <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`} style={{ width: leftCollapsed ? 10 : leftWidth }}>
           <div className="left-tabs">
             <button className={leftTab === 'toolbox' ? 'active' : ''} onClick={() => setLeftTab('toolbox')}>
               Toolbox
@@ -149,61 +257,73 @@ export function App() {
               {leftTab === 'toolbox' && (
                 <>
                   {paletteControls.map((group) => (
-                    <div key={group.group} className="group">
-                      <div className="group-title">{group.group}</div>
+                    <div key={group.group} className="group drawer">
+                      <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, [group.group]: !p[group.group] }))}>
+                        {group.group} <span className="chevron">{toolboxOpen[group.group] ? '▾' : '▸'}</span>
+                      </div>
+                      {toolboxOpen[group.group] && (
+                        <div className="tool-grid">
+                          {group.items.map((c) => (
+                            <button
+                              key={c}
+                              className="tool-btn"
+                              title={`${c} — add to canvas`}
+                              aria-label={c}
+                              onClick={() => addControl(c)}
+                              draggable
+                              onDragStart={() => setDragPayload({ kind: 'control', name: c })}
+                            >
+                              <span className="icon">{controlIcon[c] ?? '🔧'}</span>
+                              <span className="label">{c}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="group drawer">
+                    <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Alignment & Layout': !p['Alignment & Layout'] }))}>
+                      Alignment & Layout <span className="chevron">{toolboxOpen['Alignment & Layout'] ? '▾' : '▸'}</span>
+                    </div>
+                    {toolboxOpen['Alignment & Layout'] && (
                       <div className="tool-grid">
-                        {group.items.map((c) => (
+                        <button className="tool-btn" title="2-column section" aria-label="2-column section" onClick={() => addLayout('Grid-2col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-2col' })}>
+                          <span className="icon">{controlIcon['Grid-2col']}</span>
+                          <span className="label">2-col</span>
+                        </button>
+                        <button className="tool-btn" title="3-column section" aria-label="3-column section" onClick={() => addLayout('Grid-3col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-3col' })}>
+                          <span className="icon">{controlIcon['Grid-3col']}</span>
+                          <span className="label">3-col</span>
+                        </button>
+                        <button className="tool-btn" title="Table layout" aria-label="Table layout" onClick={() => addLayout('TableLayout')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'TableLayout' })}>
+                          <span className="icon">{controlIcon['TableLayout']}</span>
+                          <span className="label">Table</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="group drawer">
+                    <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Built-in Widgets': !p['Built-in Widgets'] }))}>
+                      Built-in Widgets <span className="chevron">{toolboxOpen['Built-in Widgets'] ? '▾' : '▸'}</span>
+                    </div>
+                    {toolboxOpen['Built-in Widgets'] && (
+                      <div className="tool-grid">
+                        {builtInWidgets.map((w) => (
                           <button
-                            key={c}
+                            key={w}
                             className="tool-btn"
-                            title={c}
-                            aria-label={c}
-                            onClick={() => addControl(c)}
+                            title={`${w} — add to canvas`}
+                            aria-label={w}
+                            onClick={() => addControl(w)}
                             draggable
-                            onDragStart={() => setDragPayload({ kind: 'control', name: c })}
+                            onDragStart={() => setDragPayload({ kind: 'control', name: w })}
                           >
-                            <span className="icon">{controlIcon[c] ?? '🔧'}</span>
-                            <span className="label">{c}</span>
+                            <span className="icon">{controlIcon[w] ?? '✨'}</span>
+                            <span className="label">{w}</span>
                           </button>
                         ))}
                       </div>
-                    </div>
-                  ))}
-                  <div className="group">
-                    <div className="group-title">Alignment & Layout</div>
-                    <div className="tool-grid">
-                      <button className="tool-btn" title="2-column section" aria-label="2-column section" onClick={() => addLayout('Grid-2col')}>
-                        <span className="icon">{controlIcon['Grid-2col']}</span>
-                        <span className="label">2-col</span>
-                      </button>
-                      <button className="tool-btn" title="3-column section" aria-label="3-column section" onClick={() => addLayout('Grid-3col')}>
-                        <span className="icon">{controlIcon['Grid-3col']}</span>
-                        <span className="label">3-col</span>
-                      </button>
-                      <button className="tool-btn" title="Table layout" aria-label="Table layout" onClick={() => addLayout('TableLayout')}>
-                        <span className="icon">{controlIcon['TableLayout']}</span>
-                        <span className="label">Table</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="group">
-                    <div className="group-title">Built-in Widgets</div>
-                    <div className="tool-grid">
-                      {builtInWidgets.map((w) => (
-                        <button
-                          key={w}
-                          className="tool-btn"
-                          title={w}
-                          aria-label={w}
-                          onClick={() => addControl(w)}
-                          draggable
-                          onDragStart={() => setDragPayload({ kind: 'control', name: w })}
-                        >
-                          <span className="icon">{controlIcon[w] ?? '✨'}</span>
-                          <span className="label">{w}</span>
-                        </button>
-                      ))}
-                    </div>
+                    )}
                   </div>
                 </>
               )}
@@ -283,14 +403,13 @@ export function App() {
                         onDragOver(c.id);
                       }}
                       onDragEnd={onDragEnd}
+                      onClick={() => setSelectedId(c.id)}
+                      aria-pressed={selectedId === c.id}
                     >
                       <div className="component-title">
                         <span className="drag-handle">≡</span> {c.widgetRef}
                       </div>
-                      <div className="component-body">
-                        <div>ID: {c.id}</div>
-                        {c.props && <div>Props: {JSON.stringify(c.props)}</div>}
-                      </div>
+                      <div className="component-body">{renderControl(c)}</div>
                     </div>
                   ))}
                 </div>
@@ -306,23 +425,100 @@ export function App() {
           </div>
         </section>
 
-        <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`} style={{ width: rightCollapsed ? 10 : rightWidth }}>
           <div className="right-header">
-            <span>AI Assistant</span>
+            <div className="right-tabs">
+              <button className={rightTab === 'properties' ? 'active' : ''} onClick={() => setRightTab('properties')}>
+                Properties
+              </button>
+              <button className={rightTab === 'ai' ? 'active' : ''} onClick={() => setRightTab('ai')}>
+                AI
+              </button>
+            </div>
             <button className="collapse" onClick={() => setRightCollapsed((v) => !v)}>
               {rightCollapsed ? '◀' : '▶'}
             </button>
           </div>
           {!rightCollapsed && (
             <div className="right-content">
-              <div className="ai-bubble">Ask AI to build a Vehicle Search form.</div>
-              <div className="ai-bubble secondary">"Add a workflow step for document review."</div>
+              {rightTab === 'properties' ? (
+                selectedComponent ? (
+                  <div className="props-panel">
+                    <div className="prop-field">
+                      <label>Label</label>
+                      <input
+                        value={String(selectedComponent.props?.label ?? '')}
+                        onChange={(e) => updateSelectedProp('label', e.target.value)}
+                      />
+                    </div>
+                    <div className="prop-field">
+                      <label>Placeholder</label>
+                      <input
+                        value={String(selectedComponent.props?.placeholder ?? '')}
+                        onChange={(e) => updateSelectedProp('placeholder', e.target.value)}
+                      />
+                    </div>
+                    <div className="prop-field">
+                      <label>Width</label>
+                      <input
+                        type="number"
+                        value={Number(selectedComponent.props?.width ?? 100)}
+                        onChange={(e) => updateSelectedProp('width', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="prop-field">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedComponent.props?.required)}
+                          onChange={(e) => updateSelectedProp('required', e.target.checked)}
+                        />{' '}
+                        Required
+                      </label>
+                    </div>
+                    {selectedComponent.widgetRef === 'Autocomplete' && (
+                      <>
+                        <div className="prop-field">
+                          <label>Suggestions API</label>
+                          <input
+                            value={String(selectedComponent.props?.suggestApi ?? '')}
+                            onChange={(e) => updateSelectedProp('suggestApi', e.target.value)}
+                          />
+                        </div>
+                        <div className="prop-field">
+                          <label>Static options (comma)</label>
+                          <input
+                            value={String(selectedComponent.props?.staticOptions ?? '')}
+                            onChange={(e) => updateSelectedProp('staticOptions', e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="muted">Select a component to edit properties.</div>
+                )
+              ) : (
+                <div className="ai-panel">
+                  <div className="ai-history">
+                    <div className="ai-bubble">Ask AI to build a Vehicle Search form.</div>
+                    <div className="ai-bubble secondary">"Add a workflow step for document review."</div>
+                  </div>
+                  <div className="ai-input-row">
+                    <button className="ghost small">📎 Upload mock</button>
+                    <input className="ai-input" placeholder="Ask AI..." />
+                    <button className="ghost small">Send</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </aside>
+        {!leftCollapsed && <div className="resizer vertical" onMouseDown={() => setResizing({ side: 'left' })} />}
+        {!rightCollapsed && <div className="resizer vertical right" onMouseDown={() => setResizing({ side: 'right' })} />}
       </div>
 
-      <footer className={`bottom-pane ${bottomCollapsed ? 'collapsed' : ''}`}>
+      <footer className={`bottom-pane ${bottomCollapsed ? 'collapsed' : ''}`} style={{ height: bottomCollapsed ? 12 : bottomHeight }}>
         <div className="bottom-header">
           <span>Logs / Debug</span>
           <button className="collapse" onClick={() => setBottomCollapsed((v) => !v)}>
