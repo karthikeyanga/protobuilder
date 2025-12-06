@@ -13,6 +13,33 @@ const blankField = (): FieldDraft => ({
   display: {}
 });
 
+function JsonEditor({ value, onChange }: { value: object; onChange: (next: object) => void }) {
+  const [text, setText] = useState(JSON.stringify(value, null, 2));
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(JSON.stringify(value, null, 2));
+  }, [value]);
+
+  const handleChange = (val: string) => {
+    setText(val);
+    try {
+      const parsed = JSON.parse(val);
+      onChange(parsed);
+      setErr(null);
+    } catch (e: any) {
+      setErr(e?.message ?? 'Invalid JSON');
+    }
+  };
+
+  return (
+    <div className="json-editor">
+      <textarea value={text} onChange={(e) => handleChange(e.target.value)} spellCheck={false} />
+      {err && <div className="error">{err}</div>}
+    </div>
+  );
+}
+
 export function EntitiesPage() {
   const { appId } = useParams();
   const [entities, setEntities] = useState<EntityRow[]>([]);
@@ -20,10 +47,9 @@ export function EntitiesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const selected = useMemo(() => entities.find((e) => e.id === selectedId) ?? entities[0], [entities, selectedId]);
   const [draft, setDraft] = useState<EntityConfig>({ name: '', version: '0.0.1', fields: [] });
   const [fieldDraft, setFieldDraft] = useState<FieldDraft>(blankField());
+  const selected = useMemo(() => entities.find((e) => e.id === selectedId) ?? entities[0], [entities, selectedId]);
 
   useEffect(() => {
     if (!appId) return;
@@ -35,6 +61,8 @@ export function EntitiesPage() {
         if (rows.length > 0) {
           setSelectedId(rows[0].dto.id);
           setDraft(rows[0].config);
+        } else {
+          setDraft({ name: '', version: '0.0.1', fields: [] });
         }
       })
       .catch(() => setError('Failed to load entities'))
@@ -42,9 +70,7 @@ export function EntitiesPage() {
   }, [appId]);
 
   useEffect(() => {
-    if (selected) {
-      setDraft(selected.config);
-    }
+    if (selected) setDraft(selected.config);
   }, [selected]);
 
   const addField = () => {
@@ -75,14 +101,30 @@ export function EntitiesPage() {
     }
   };
 
+  const saveDraftLocal = () => {
+    if (!appId || !draft.name) return;
+    localStorage.setItem(`pb:${appId}:entity:${draft.name}`, JSON.stringify(draft));
+  };
+
+  const loadDraftLocal = () => {
+    if (!appId || !draft.name) return;
+    const raw = localStorage.getItem(`pb:${appId}:entity:${draft.name}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as EntityConfig;
+        setDraft(parsed);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   const newEntity = () => {
     setSelectedId(undefined);
     setDraft({ name: '', version: '0.0.1', fields: [] });
   };
 
-  if (!appId) {
-    return <div className="panel-placeholder error">No app selected.</div>;
-  }
+  if (!appId) return <div className="panel-placeholder error">No app selected.</div>;
 
   return (
     <div className="panel entity-panel">
@@ -90,6 +132,8 @@ export function EntitiesPage() {
         <h3>Entities</h3>
         <div className="inline-form">
           <button className="ghost small" onClick={newEntity}>+ New Entity</button>
+          <button className="ghost small" onClick={saveDraftLocal} disabled={!draft.name.trim()}>Save Draft (local)</button>
+          <button className="ghost small" onClick={loadDraftLocal} disabled={!draft.name.trim()}>Load Draft</button>
           <button className="ghost small" onClick={saveEntity} disabled={saving || !draft.name.trim()}>
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -101,7 +145,7 @@ export function EntitiesPage() {
       ) : error ? (
         <div className="panel-placeholder error">{error}</div>
       ) : (
-        <div className="entity-grid">
+        <div className="entity-grid split">
           <div className="entity-list">
             {entities.length === 0 && <div className="muted">No entities yet.</div>}
             {entities.map((e) => (
@@ -119,133 +163,140 @@ export function EntitiesPage() {
             ))}
           </div>
 
-          <div className="entity-editor">
-            <div className="inline-form">
-              <input placeholder="Name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-              <input placeholder="Version" value={draft.version} onChange={(e) => setDraft((d) => ({ ...d, version: e.target.value }))} />
-            </div>
+          <div className="entity-editor dual">
+            <div className="form-pane">
+              <div className="inline-form">
+                <input placeholder="Name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+                <input placeholder="Version" value={draft.version} onChange={(e) => setDraft((d) => ({ ...d, version: e.target.value }))} />
+              </div>
 
-            <div className="field-editor">
-              <div className="field-row">
-                <input placeholder="Field name" value={fieldDraft.name} onChange={(e) => setFieldDraft((f) => ({ ...f, name: e.target.value }))} />
-                <select value={fieldDraft.kind} onChange={(e) => setFieldDraft((f) => ({ ...f, kind: e.target.value as FieldDraft['kind'] }))}>
-                  <option value="primitive">Primitive</option>
-                  <option value="object">Object</option>
-                  <option value="reference">Reference</option>
-                  <option value="list">List</option>
-                </select>
-                {fieldDraft.kind === 'primitive' && (
-                  <select value={fieldDraft.type} onChange={(e) => setFieldDraft((f) => ({ ...f, type: e.target.value }))}>
-                    <option value="string">string</option>
-                    <option value="number">number</option>
-                    <option value="boolean">boolean</option>
-                    <option value="date">date</option>
+              <div className="field-editor">
+                <div className="field-row">
+                  <input placeholder="Field name" value={fieldDraft.name} onChange={(e) => setFieldDraft((f) => ({ ...f, name: e.target.value }))} />
+                  <select value={fieldDraft.kind} onChange={(e) => setFieldDraft((f) => ({ ...f, kind: e.target.value as FieldDraft['kind'] }))}>
+                    <option value="primitive">Primitive</option>
+                    <option value="object">Object</option>
+                    <option value="reference">Reference</option>
+                    <option value="list">List</option>
                   </select>
-                )}
-                {fieldDraft.kind === 'reference' && (
-                  <>
-                    <input placeholder="Ref entity" value={fieldDraft.ref ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, ref: e.target.value }))} />
-                    <select value={fieldDraft.cardinality ?? 'one'} onChange={(e) => setFieldDraft((f) => ({ ...f, cardinality: e.target.value as 'one' | 'many' }))}>
-                      <option value="one">one</option>
-                      <option value="many">many</option>
+                  {fieldDraft.kind === 'primitive' && (
+                    <select value={fieldDraft.type} onChange={(e) => setFieldDraft((f) => ({ ...f, type: e.target.value }))}>
+                      <option value="string">string</option>
+                      <option value="number">number</option>
+                      <option value="boolean">boolean</option>
+                      <option value="date">date</option>
                     </select>
-                  </>
-                )}
-                {fieldDraft.kind === 'list' && (
-                  <input placeholder="Item type/ref" value={fieldDraft.type ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, type: e.target.value }))} />
-                )}
-                <label className="checkbox-inline">
+                  )}
+                  {fieldDraft.kind === 'reference' && (
+                    <>
+                      <input placeholder="Ref entity" value={fieldDraft.ref ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, ref: e.target.value }))} />
+                      <select value={fieldDraft.cardinality ?? 'one'} onChange={(e) => setFieldDraft((f) => ({ ...f, cardinality: e.target.value as 'one' | 'many' }))}>
+                        <option value="one">one</option>
+                        <option value="many">many</option>
+                      </select>
+                    </>
+                  )}
+                  {fieldDraft.kind === 'list' && (
+                    <input placeholder="Item type/ref" value={fieldDraft.type ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, type: e.target.value }))} />
+                  )}
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(fieldDraft.constraints?.required)}
+                      onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), required: e.target.checked } }))}
+                    /> required
+                  </label>
+                  <button className="ghost small" onClick={addField} disabled={!fieldDraft.name.trim()}>
+                    Add field
+                  </button>
+                </div>
+                <div className="field-row">
                   <input
-                    type="checkbox"
-                    checked={Boolean(fieldDraft.constraints?.required)}
-                    onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), required: e.target.checked } }))}
-                  /> required
-                </label>
-                <button className="ghost small" onClick={addField} disabled={!fieldDraft.name.trim()}>
-                  Add field
-                </button>
+                    placeholder="Min"
+                    type="number"
+                    value={fieldDraft.constraints?.min ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), min: e.target.value ? Number(e.target.value) : undefined } }))}
+                  />
+                  <input
+                    placeholder="Max"
+                    type="number"
+                    value={fieldDraft.constraints?.max ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), max: e.target.value ? Number(e.target.value) : undefined } }))}
+                  />
+                  <input
+                    placeholder="Allowed values (comma)"
+                    value={(fieldDraft.constraints?.allowedValues ?? []).join(',')}
+                    onChange={(e) =>
+                      setFieldDraft((f) => ({
+                        ...f,
+                        constraints: {
+                          ...(f.constraints ?? {}),
+                          allowedValues: e.target.value ? e.target.value.split(',').map((v) => v.trim()).filter(Boolean) : undefined
+                        }
+                      }))
+                    }
+                  />
+                  <input
+                    placeholder="Regex pattern"
+                    value={fieldDraft.constraints?.pattern ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), pattern: e.target.value || undefined } }))}
+                  />
+                  <input
+                    placeholder="Derived expression"
+                    value={fieldDraft.derivedFrom ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, derivedFrom: e.target.value || undefined }))}
+                  />
+                </div>
+                <div className="field-row">
+                  <input
+                    placeholder="Label"
+                    value={fieldDraft.display?.label ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), label: e.target.value || undefined } }))}
+                  />
+                  <input
+                    placeholder="Description"
+                    value={fieldDraft.display?.description ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), description: e.target.value || undefined } }))}
+                  />
+                  <input
+                    placeholder="Placeholder"
+                    value={fieldDraft.display?.placeholder ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), placeholder: e.target.value || undefined } }))}
+                  />
+                  <input
+                    placeholder="Hint"
+                    value={fieldDraft.display?.hint ?? ''}
+                    onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), hint: e.target.value || undefined } }))}
+                  />
+                </div>
               </div>
-              <div className="field-row">
-                <input
-                  placeholder="Min"
-                  type="number"
-                  value={fieldDraft.constraints?.min ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), min: e.target.value ? Number(e.target.value) : undefined } }))}
-                />
-                <input
-                  placeholder="Max"
-                  type="number"
-                  value={fieldDraft.constraints?.max ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), max: e.target.value ? Number(e.target.value) : undefined } }))}
-                />
-                <input
-                  placeholder="Allowed values (comma)"
-                  value={(fieldDraft.constraints?.allowedValues ?? []).join(',')}
-                  onChange={(e) =>
-                    setFieldDraft((f) => ({
-                      ...f,
-                      constraints: {
-                        ...(f.constraints ?? {}),
-                        allowedValues: e.target.value ? e.target.value.split(',').map((v) => v.trim()).filter(Boolean) : undefined
-                      }
-                    }))
-                  }
-                />
-                <input
-                  placeholder="Regex pattern"
-                  value={fieldDraft.constraints?.pattern ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, constraints: { ...(f.constraints ?? {}), pattern: e.target.value || undefined } }))}
-                />
-                <input
-                  placeholder="Derived expression"
-                  value={fieldDraft.derivedFrom ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, derivedFrom: e.target.value || undefined }))}
-                />
-              </div>
-              <div className="field-row">
-                <input
-                  placeholder="Label"
-                  value={fieldDraft.display?.label ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), label: e.target.value || undefined } }))}
-                />
-                <input
-                  placeholder="Description"
-                  value={fieldDraft.display?.description ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), description: e.target.value || undefined } }))}
-                />
-                <input
-                  placeholder="Placeholder"
-                  value={fieldDraft.display?.placeholder ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), placeholder: e.target.value || undefined } }))}
-                />
-                <input
-                  placeholder="Hint"
-                  value={fieldDraft.display?.hint ?? ''}
-                  onChange={(e) => setFieldDraft((f) => ({ ...f, display: { ...(f.display ?? {}), hint: e.target.value || undefined } }))}
-                />
+
+              <div className="list">
+                {draft.fields.length === 0 && <div className="muted">No fields added.</div>}
+                {draft.fields.map((f) => (
+                  <div key={f.name} className="list-row">
+                    <div>
+                      <div className="title">
+                        {f.name} <span className="muted small">({f.kind}{f.type ? `:${f.type}` : ''}{f.ref ? `→${f.ref}` : ''}{f.cardinality ? `/${f.cardinality}` : ''})</span>
+                      </div>
+                      <div className="muted small">
+                        {f.constraints?.required ? 'required ' : ''}
+                        {f.constraints?.min !== undefined ? `min:${f.constraints.min} ` : ''}
+                        {f.constraints?.max !== undefined ? `max:${f.constraints.max} ` : ''}
+                        {f.constraints?.allowedValues ? `enum:${f.constraints.allowedValues.join('|')} ` : ''}
+                        {f.constraints?.pattern ? `regex:${f.constraints.pattern}` : ''}
+                      </div>
+                      {f.derivedFrom && <div className="muted small">derived: {f.derivedFrom}</div>}
+                    </div>
+                    <button className="ghost small" onClick={() => removeField(f.name)}>Remove</button>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="list">
-              {draft.fields.length === 0 && <div className="muted">No fields added.</div>}
-              {draft.fields.map((f) => (
-                <div key={f.name} className="list-row">
-                  <div>
-                    <div className="title">
-                      {f.name} <span className="muted small">({f.kind}{f.type ? `:${f.type}` : ''}{f.ref ? `→${f.ref}` : ''}{f.cardinality ? `/${f.cardinality}` : ''})</span>
-                    </div>
-                    <div className="muted small">
-                      {f.constraints?.required ? 'required ' : ''}
-                      {f.constraints?.min !== undefined ? `min:${f.constraints.min} ` : ''}
-                      {f.constraints?.max !== undefined ? `max:${f.constraints.max} ` : ''}
-                      {f.constraints?.allowedValues ? `enum:${f.constraints.allowedValues.join('|')} ` : ''}
-                      {f.constraints?.pattern ? `regex:${f.constraints.pattern}` : ''}
-                    </div>
-                    {f.derivedFrom && <div className="muted small">derived: {f.derivedFrom}</div>}
-                  </div>
-                  <button className="ghost small" onClick={() => removeField(f.name)}>Remove</button>
-                </div>
-              ))}
+            <div className="json-pane">
+              <div className="pane-title">JSON Editor</div>
+              <JsonEditor value={draft} onChange={(next) => setDraft(next as EntityConfig)} />
             </div>
           </div>
         </div>
