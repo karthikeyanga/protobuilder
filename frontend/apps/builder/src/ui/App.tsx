@@ -28,6 +28,28 @@ const controlIcon: Record<string, string> = {
   FileUploader: '☁️',
   DateRangePicker: '📆'
 };
+const controlDesc: Record<string, string> = {
+  Text: 'Single-line text input',
+  TextArea: 'Multi-line text input',
+  Select: 'Dropdown select',
+  ComboBox: 'Selectable with typing',
+  Radio: 'Radio options',
+  Checkbox: 'Boolean toggle',
+  Date: 'Date picker',
+  FileUpload: 'Upload a file',
+  Button: 'Button',
+  Table: 'Simple table',
+  Tabs: 'Tabbed content',
+  'Grid-2col': 'Two-column layout',
+  'Grid-3col': 'Three-column layout',
+  TableLayout: 'Table layout section',
+  Autocomplete: 'Suggestions as you type',
+  MultiSelect: 'Select multiple options',
+  DataTable: 'Data table with header',
+  Stepper: 'Step indicator',
+  FileUploader: 'Upload with progress',
+  DateRangePicker: 'Start/end date'
+};
 
 const paletteControls = [
   { group: 'Basic UI', items: ['Text', 'TextArea', 'Select', 'ComboBox', 'Radio', 'Checkbox', 'Date', 'FileUpload', 'Button', 'Table', 'Tabs'] },
@@ -224,7 +246,13 @@ export function App() {
   return (
     <div className="layout">
       <header className="topbar">
-        <div className="logo">ProtoBuilder — Builder (mocked)</div>
+        <div className="logo">ProtoBuilder — Builder</div>
+        <div className="menu-actions">
+          <button type="button">New App</button>
+          <button type="button">Load App</button>
+          <button type="button">Save App</button>
+          <button type="button">List Apps</button>
+        </div>
         <div className="top-actions">
           <button type="button">Test</button>
           <button type="button">Debug</button>
@@ -267,14 +295,14 @@ export function App() {
                             <button
                               key={c}
                               className="tool-btn"
-                              title={`${c} — add to canvas`}
-                              aria-label={c}
+                            title={`${c} — ${controlDesc[c] ?? ''}`}
+                            aria-label={c}
                               onClick={() => addControl(c)}
                               draggable
                               onDragStart={() => setDragPayload({ kind: 'control', name: c })}
                             >
-                              <span className="icon">{controlIcon[c] ?? '🔧'}</span>
-                              <span className="label">{c}</span>
+                            <span className="icon">{controlIcon[c] ?? '🔧'}</span>
+                            <span className="sr-only">{c}</span>
                             </button>
                           ))}
                         </div>
@@ -289,15 +317,15 @@ export function App() {
                       <div className="tool-grid">
                         <button className="tool-btn" title="2-column section" aria-label="2-column section" onClick={() => addLayout('Grid-2col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-2col' })}>
                           <span className="icon">{controlIcon['Grid-2col']}</span>
-                          <span className="label">2-col</span>
+                          <span className="sr-only">2-col</span>
                         </button>
                         <button className="tool-btn" title="3-column section" aria-label="3-column section" onClick={() => addLayout('Grid-3col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-3col' })}>
                           <span className="icon">{controlIcon['Grid-3col']}</span>
-                          <span className="label">3-col</span>
+                          <span className="sr-only">3-col</span>
                         </button>
                         <button className="tool-btn" title="Table layout" aria-label="Table layout" onClick={() => addLayout('TableLayout')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'TableLayout' })}>
                           <span className="icon">{controlIcon['TableLayout']}</span>
-                          <span className="label">Table</span>
+                          <span className="sr-only">Table</span>
                         </button>
                       </div>
                     )}
@@ -312,14 +340,14 @@ export function App() {
                           <button
                             key={w}
                             className="tool-btn"
-                            title={`${w} — add to canvas`}
+                            title={`${w} — ${controlDesc[w] ?? ''}`}
                             aria-label={w}
                             onClick={() => addControl(w)}
                             draggable
                             onDragStart={() => setDragPayload({ kind: 'control', name: w })}
                           >
                             <span className="icon">{controlIcon[w] ?? '✨'}</span>
-                            <span className="label">{w}</span>
+                            <span className="sr-only">{w}</span>
                           </button>
                         ))}
                       </div>
