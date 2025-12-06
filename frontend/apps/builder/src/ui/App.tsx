@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import type { AppConfig } from '@protobuilder/schema';
-import { mockAppConfig, mockPages, mockConnectors } from '../mocks/mock-app';
+import { mockAppConfig } from '../mocks/mock-app';
 import { ApplicationsPage } from '../pages/ApplicationsPage';
 import { ChecklistPage } from '../pages/ChecklistPage';
 import { EntitiesPage } from '../pages/EntitiesPage';
@@ -14,12 +14,14 @@ import { ThemePage } from '../pages/ThemePage';
 import { UsersPage } from '../pages/UsersPage';
 import { DeploymentsPage } from '../pages/DeploymentsPage';
 import { NavRail } from './NavRail';
-import { fetchAppDetail } from '../services/appService';
+import { fetchAppDetail, updateApp, createApp } from '../services/appService';
+import { listConnectors } from '../services/connectorService';
+import { listWorkflows } from '../services/workflowService';
 
 type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
 type MainTab = 'design' | 'code';
 type RightTab = 'properties' | 'ai';
-type ComponentsByPage = Record<string, typeof mockPages[0]['components']>;
+type ComponentsByPage = Record<string, any[]>;
 const LOCAL_KEY = (appId: string, page: string) => `pb:${appId}:page:${page}`;
 
 const controlIcon: Record<string, string> = {
@@ -83,23 +85,11 @@ const builtInWidgets = [
 
 export function App() {
   const [config, setConfig] = useState<AppConfig>(mockAppConfig);
-  const initialComponents = useMemo<ComponentsByPage>(() => {
-    const seeded: ComponentsByPage = {};
-    mockPages.forEach((p) => {
-      const fromStorage = window.localStorage.getItem(LOCAL_KEY(config.appId, p.name));
-      const parsed = fromStorage ? (JSON.parse(fromStorage) as typeof p.components) : null;
-      const base = parsed ?? p.components ?? [];
-      seeded[p.name] = base.map((c, idx) => ({
-        ...c,
-        xPct: c.xPct ?? 10 + idx * 5,
-        yPct: c.yPct ?? 10 + idx * 4
-      }));
-    });
-    return seeded;
-  }, [config.appId]);
-
-  const [componentsByPage, setComponentsByPage] = useState<ComponentsByPage>(initialComponents);
-  const [selectedPage, setSelectedPage] = useState<string>(mockPages[0]?.name ?? '');
+  const [componentsByPage, setComponentsByPage] = useState<ComponentsByPage>({});
+  const [pages, setPages] = useState<string[]>([]);
+  const [selectedPage, setSelectedPage] = useState<string>('');
+  const [dataConnectors, setDataConnectors] = useState<string[]>([]);
+  const [dataWorkflows, setDataWorkflows] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
@@ -148,7 +138,7 @@ export function App() {
   const codePreview = useMemo(
     () =>
       `// generated UI (placeholder)\nexport const config = ${JSON.stringify(
-        { ...config, pages: [{ ...mockPages.find((p) => p.name === selectedPage), components: componentsByPage[selectedPage] ?? [] }] },
+        { ...config, pages: [{ name: selectedPage || 'Page1', components: componentsByPage[selectedPage] ?? [] }] },
         null,
         2
       )};`,
@@ -352,20 +342,66 @@ export function App() {
   useEffect(() => {
     if (!currentAppId) return;
     setLoadingApp(true);
+    setComponentsByPage({});
+    setPages([]);
+    setSelectedPage('');
+    setSelectedId(null);
+    setSelectedConnectorId(null);
+    setSelectedWorkflowId(null);
+    setDataConnectors([]);
+    setDataWorkflows([]);
     setLoadError(null);
     fetchAppDetail(currentAppId)
       .then((cfg) => {
         const nextConfig = cfg ?? { ...mockAppConfig, appId: currentAppId };
         setConfig(nextConfig);
+        const loadedLayouts = (nextConfig as any).pageLayouts as ComponentsByPage | undefined;
+        if (loadedLayouts) {
+          setComponentsByPage(loadedLayouts);
+        }
+        const pageList = nextConfig.pages ?? Object.keys(loadedLayouts ?? {});
+        const finalPages = pageList.length > 0 ? pageList : ['Page1'];
+        setPages(finalPages);
+        if (!selectedPage && finalPages.length > 0) {
+          setSelectedPage(finalPages[0]);
+        }
+        // pre-load connectors into left-pane data list
+        listConnectors(currentAppId)
+          .then((rows) => {
+            const ids = rows.map((r) => r.dto.name ?? r.dto.id);
+            setDataConnectors(ids);
+          })
+          .catch(() => {
+            // ignore for now
+          });
+        listWorkflows(currentAppId)
+          .then((rows) => {
+            const ids = rows.map((r) => r.dto.name ?? r.dto.id);
+            setDataWorkflows(ids);
+          })
+          .catch(() => {
+            // ignore for now
+          });
         setStatusMsg(`Loaded ${nextConfig.appId}`);
       })
       .catch(() => setLoadError('Failed to load application'))
       .finally(() => setLoadingApp(false));
-  }, [currentAppId]);
+  }, [currentAppId, selectedPage]);
 
-  const handleSelectApp = (id: string, name: string) => {
-    setSelectedApp(id === 'new' ? 'untitled-app' : id);
-    navigate(id === 'new' ? `/apps/untitled-app/checklist` : `/apps/${id}/editor`);
+  const handleSelectApp = async (id: string, name: string) => {
+    if (id === 'new') {
+      try {
+        const summary = await createApp(name || 'Untitled App', { ...mockAppConfig, appId: '' });
+        setSelectedApp(summary.id);
+        setConfig((c) => ({ ...c, appId: summary.id }));
+        navigate(`/apps/${summary.id}/checklist`);
+      } catch {
+        setStatusMsg('Failed to create app');
+      }
+      return;
+    }
+    setSelectedApp(id);
+    navigate(`/apps/${id}/editor`);
   };
 
   const handleSelectPage = (pageName: string) => {
@@ -374,26 +410,33 @@ export function App() {
     const stored = loadPageFromStorage(pageName);
     if (stored) {
       setComponentsByPage((prev) => ({ ...prev, [pageName]: stored }));
+    } else {
+      setComponentsByPage((prev) => ({ ...prev, [pageName]: prev[pageName] ?? [] }));
     }
   };
 
   const saveCurrentPage = () => {
-    const comps = componentsByPage[selectedPage] ?? [];
-    savePageToStorage(selectedPage, comps);
+    const pageName = selectedPage || 'Page1';
+    const comps = componentsByPage[pageName] ?? [];
+    savePageToStorage(pageName, comps);
+    if (currentAppId) {
+      const nextConfig = {
+        ...config,
+        pages: Array.from(new Set([...(config.pages ?? []), pageName])),
+        pageLayouts: { ...componentsByPage, [pageName]: comps }
+      } as any;
+      const nextPages = Array.from(new Set([...(config.pages ?? []), pageName]));
+      setPages(nextPages);
+      setConfig(nextConfig);
+      updateApp(currentAppId, nextConfig).catch(() => setStatusMsg('Save to backend failed'));
+    }
   };
 
   const resetCurrentPage = () => {
-    const mock = mockPages.find((p) => p.name === selectedPage);
-    if (!mock) return;
-    const base = mock.components ?? [];
-    const next = base.map((c, idx) => ({
-      ...c,
-      xPct: c.xPct ?? 10 + idx * 5,
-      yPct: c.yPct ?? 10 + idx * 4
-    }));
-    setComponentsByPage((prev) => ({ ...prev, [selectedPage]: next }));
-    window.localStorage.removeItem(LOCAL_KEY(config.appId, selectedPage));
-    setStatusMsg(`Reset ${selectedPage}`);
+    const pageName = selectedPage || 'Page1';
+    setComponentsByPage((prev) => ({ ...prev, [pageName]: [] }));
+    window.localStorage.removeItem(LOCAL_KEY(config.appId, pageName));
+    setStatusMsg(`Reset ${pageName}`);
   };
 
   const handleTopbarAction = (action: 'new' | 'load' | 'save' | 'test' | 'debug' | 'deploy') => {
@@ -538,88 +581,68 @@ export function App() {
                     </div>
                   </>
                 )}
-                {leftTab === 'pages' && (
-                  <div className="group">
-                    <div className="group-title">Pages</div>
-                    <ul className="select-list">
-                      {mockPages.map((p) => (
-                        <li
-                          key={p.name}
-                          className={p.name === selectedPage ? 'active' : ''}
-                          onClick={() => handleSelectPage(p.name)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSelectPage(p.name)}
-                        >
-                          {p.name}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {leftTab === 'workflows' && (
-                  <div className="group">
-                    <div className="group-title">Workflows</div>
-                    <ul className="select-list">
+              {leftTab === 'pages' && (
+                <div className="group">
+                  <div className="group-title">Pages</div>
+                  <ul className="select-list">
+                    {pages.map((p) => (
                       <li
-                        className={selectedWorkflowId === 'VehicleLookupFlow' ? 'active' : ''}
+                        key={p}
+                        className={p === selectedPage ? 'active' : ''}
+                        onClick={() => handleSelectPage(p)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSelectPage(p)}
+                      >
+                        {p}
+                      </li>
+                    ))}
+                    {pages.length === 0 && <li className="muted">No pages yet</li>}
+                  </ul>
+                </div>
+              )}
+              {leftTab === 'workflows' && (
+                <div className="group">
+                  <div className="group-title">Workflows</div>
+                  <ul className="select-list">
+                    {dataWorkflows.map((w) => (
+                      <li
+                        key={w}
+                        className={selectedWorkflowId === w ? 'active' : ''}
                         onClick={() => {
-                          setSelectedWorkflowId('VehicleLookupFlow');
+                          setSelectedWorkflowId(w);
                           setSelectedConnectorId(null);
                           setSelectedId(null);
                         }}
                       >
-                        VehicleLookupFlow
+                        {w}
                       </li>
+                    ))}
+                    {dataWorkflows.length === 0 && <li className="muted">No workflows yet</li>}
+                  </ul>
+                </div>
+              )}
+              {leftTab === 'data' && (
+                <div className="group">
+                  <div className="group-title">Connectors & Data</div>
+                  <ul className="select-list">
+                    {dataConnectors.map((id) => (
                       <li
-                        className={selectedWorkflowId === 'ClaimsReviewFlow' ? 'active' : ''}
+                        key={id}
+                        className={selectedConnectorId === id ? 'active' : ''}
                         onClick={() => {
-                          setSelectedWorkflowId('ClaimsReviewFlow');
-                          setSelectedConnectorId(null);
+                          setSelectedConnectorId(id);
+                          setSelectedWorkflowId(null);
                           setSelectedId(null);
                         }}
                       >
-                        ClaimsReviewFlow
+                        {id}
                       </li>
-                      <li
-                        className={selectedWorkflowId === 'CustomTask' ? 'active' : ''}
-                        onClick={() => {
-                          setSelectedWorkflowId('CustomTask');
-                          setSelectedConnectorId(null);
-                          setSelectedId(null);
-                        }}
-                      >
-                        Custom Task Nodes
-                      </li>
-                    </ul>
-                  </div>
-                )}
-                {leftTab === 'data' && (
-                  <div className="group">
-                    <div className="group-title">Connectors & Data</div>
-                    <ul className="select-list">
-                      {mockConnectors.map((c) => (
-                        <li
-                          key={c.id}
-                          className={selectedConnectorId === c.id ? 'active' : ''}
-                          onClick={() => {
-                            setSelectedConnectorId(c.id);
-                            setSelectedWorkflowId(null);
-                            setSelectedId(null);
-                          }}
-                        >
-                          {c.id} ({c.kind})
-                        </li>
-                      ))}
-                      <li className={selectedConnectorId === 'db-source' ? 'active' : ''} onClick={() => setSelectedConnectorId('db-source')}>
-                        DB Sources (placeholder)
-                      </li>
-                      <li className={selectedConnectorId === 'storage' ? 'active' : ''} onClick={() => setSelectedConnectorId('storage')}>
-                        Storage Buckets (placeholder)
-                      </li>
-                    </ul>
-                  </div>
-                )}
+                    ))}
+                    {dataConnectors.length === 0 && <li className="muted">No connectors yet</li>}
+                  </ul>
+                </div>
+              )}
               </div>
             )}
         </aside>
@@ -646,96 +669,98 @@ export function App() {
                   {loadingApp && <div className="panel-placeholder">Loading application...</div>}
                   {loadError && !loadingApp && <div className="panel-placeholder error">{loadError}</div>}
                   {!loadingApp && !loadError && (
-                  <div className="tab-bar">
-                    <div className="tabs">
-                      <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
-                        Design
-                      </button>
-                      <button className={mainTab === 'code' ? 'active' : ''} onClick={() => setMainTab('code')}>
-                        Code
-                      </button>
-                    </div>
-                    <div className="breadcrumbs">
-                      <span>{currentAppId ?? 'Select an app'}</span>
-                      {isEditor && (
-                        <span className="breadcrumb-page">
-                          <select value={selectedPage} onChange={(e) => handleSelectPage(e.target.value)}>
-                            {mockPages.map((p) => (
-                              <option key={p.name} value={p.name}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                    <>
+                      <div className="tab-bar">
+                        <div className="tabs">
+                          <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
+                            Design
+                          </button>
+                          <button className={mainTab === 'code' ? 'active' : ''} onClick={() => setMainTab('code')}>
+                            Code
+                          </button>
+                        </div>
+                        <div className="breadcrumbs">
+                          <span>{currentAppId ?? 'Select an app'}</span>
+                          {isEditor && pages.length > 0 && (
+                            <span className="breadcrumb-page">
+                              <select value={selectedPage} onChange={(e) => handleSelectPage(e.target.value)}>
+                                {pages.map((p) => (
+                                  <option key={p} value={p}>
+                                    {p}
+                                  </option>
+                                ))}
+                              </select>
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                  {mainTab === 'design' ? (
-                    <div
-                      className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
-                      onDragOver={onCanvasDragOver}
-                      onDragLeave={onCanvasDragLeave}
-                      onDrop={onCanvasDrop}
-                      ref={canvasRef}
-                    >
-                      <div className="canvas-toolbar">
-                        <p className="hint">Drag controls to the canvas; position them as desired.</p>
-                        <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
-                          {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
-                        </button>
-                      </div>
-                      <div className="chip-row">
-                        <span className="chip">App: {currentAppId ?? config.appId}</span>
-                        <span className="chip">Page: {selectedPage}</span>
-                        <span className="chip">Connectors: {config.connectors.length}</span>
-                      </div>
-                      <div className="stage-row">
-                        {stages.map((s) => (
-                          <span key={s} className="stage-chip">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="component-surface">
-                        {(componentsByPage[selectedPage]?.length ?? 0) === 0 && <div className="empty">No components yet. Drag from the left.</div>}
-                        {(componentsByPage[selectedPage] ?? []).map((c) => (
-                          <div
-                            key={c.id}
-                            className="component-card"
-                            style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
-                            draggable
-                            onDragStart={() => onDragStart(c.id)}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              onDragOver(c.id);
-                            }}
-                            onDragEnd={onDragEnd}
-                            onClick={() => setSelectedId(c.id)}
-                            aria-pressed={selectedId === c.id}
-                          >
-                            <div className="component-title">
-                              <span className="drag-handle">≡</span> {c.widgetRef}
-                            </div>
-                            <div className="component-body">{renderControl(c)}</div>
+                      {mainTab === 'design' ? (
+                        <div
+                          className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
+                          onDragOver={onCanvasDragOver}
+                          onDragLeave={onCanvasDragLeave}
+                          onDrop={onCanvasDrop}
+                          ref={canvasRef}
+                        >
+                          <div className="canvas-toolbar">
+                            <p className="hint">Drag controls to the canvas; position them as desired.</p>
+                            <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
+                              {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                      <div className="canvas-actions">
-                        <button type="button" className="ghost" onClick={removeLast} disabled={(componentsByPage[selectedPage]?.length ?? 0) === 0}>
-                          Remove last
-                        </button>
-                        <button type="button" className="ghost" onClick={saveCurrentPage} disabled={!currentAppId}>
-                          Save page
-                        </button>
-                        <button type="button" className="ghost" onClick={resetCurrentPage}>
-                          Reset page
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <pre className="code-view">{codePreview}</pre>
-                  )}
+                          <div className="chip-row">
+                            <span className="chip">App: {currentAppId ?? config.appId}</span>
+                        <span className="chip">Page: {selectedPage || 'Page1'}</span>
+                        <span className="chip">Connectors: {dataConnectors.length}</span>
+                          </div>
+                          <div className="stage-row">
+                            {stages.map((s) => (
+                              <span key={s} className="stage-chip">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="component-surface">
+                            {(componentsByPage[selectedPage]?.length ?? 0) === 0 && <div className="empty">No components yet. Drag from the left.</div>}
+                            {(componentsByPage[selectedPage] ?? []).map((c) => (
+                              <div
+                                key={c.id}
+                                className="component-card"
+                                style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
+                                draggable
+                                onDragStart={() => onDragStart(c.id)}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  onDragOver(c.id);
+                                }}
+                                onDragEnd={onDragEnd}
+                                onClick={() => setSelectedId(c.id)}
+                                aria-pressed={selectedId === c.id}
+                              >
+                                <div className="component-title">
+                                  <span className="drag-handle">≡</span> {c.widgetRef}
+                                </div>
+                                <div className="component-body">{renderControl(c)}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="canvas-actions">
+                            <button type="button" className="ghost" onClick={removeLast} disabled={(componentsByPage[selectedPage]?.length ?? 0) === 0}>
+                              Remove last
+                            </button>
+                            <button type="button" className="ghost" onClick={saveCurrentPage} disabled={!currentAppId}>
+                              Save page
+                            </button>
+                            <button type="button" className="ghost" onClick={resetCurrentPage}>
+                              Reset page
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <pre className="code-view">{codePreview}</pre>
+                      )}
+                    </>
                   )}
                 </div>
               }
