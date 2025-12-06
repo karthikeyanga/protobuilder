@@ -17,4 +17,14 @@ CREATE TABLE IF NOT EXISTS entities (
   updated_at TIMESTAMP NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS connectors (
+  id UUID PRIMARY KEY,
+  app_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  version VARCHAR(64) NOT NULL,
+  config TEXT,
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
+);
+
 
