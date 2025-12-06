@@ -9,6 +9,7 @@ type NewAppPageProps = {
 export function NewAppPage({ onCreated }: NewAppPageProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [initialPage, setInitialPage] = useState('Page1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -24,11 +25,10 @@ export function NewAppPage({ onCreated }: NewAppPageProps) {
         version: '0.0.1',
         entities: [],
         connectors: [],
-        pages: ['Page1'],
-        pageLayouts: { Page1: [] },
+        pages: [initialPage],
+        pageLayouts: { [initialPage]: [] },
         widgets: [],
-        workflows: [],
-        description
+        workflows: []
       } as any);
       onCreated(summary.id, summary.name);
       navigate(`/apps/${summary.id}/checklist`);
@@ -43,29 +43,19 @@ export function NewAppPage({ onCreated }: NewAppPageProps) {
     <div className="new-app-page">
       <div className="new-app-hero">
         <div>
-          <p className="eyebrow">ProtoBuilder</p>
+          <p className="eyebrow">Applications</p>
           <h1>Spin up a new application</h1>
-          <p className="muted">Name it, add context, and we will scaffold pages, entities, and connectors.</p>
+          <p className="muted">Name it, add context, and we will scaffold the first page for you. You can refine entities, connectors, and workflows after creation.</p>
         </div>
-        <div className="hero-badges">
-          <span className="badge">GitHub theme</span>
-          <span className="badge">Drag & drop UI</span>
-          <span className="badge">Workflow-ready</span>
-        </div>
+        <button className="ghost" type="button" onClick={() => navigate('/apps')}>
+          ← Back to list
+        </button>
       </div>
 
       <div className="new-app-grid">
-        <div className="card glass">
-          <div className="card-header">
-            <div>
-              <h3>Application details</h3>
-              <p className="muted">We’ll use this to name the config, routes, and exports.</p>
-            </div>
-            <button className="ghost" type="button" onClick={() => navigate('/apps')}>
-              ← Back to list
-            </button>
-          </div>
-
+        <div className="card glass stack">
+          <h3>Application details</h3>
+          <p className="muted">We’ll name your config, routes, and exports from these basics.</p>
           <form className="form-vertical" onSubmit={handleSubmit}>
             <label>
               Application name
@@ -85,6 +75,14 @@ export function NewAppPage({ onCreated }: NewAppPageProps) {
                 rows={3}
               />
             </label>
+            <label>
+              First page name
+              <input
+                placeholder="e.g., IntakeForm"
+                value={initialPage}
+                onChange={(e) => setInitialPage(e.target.value || 'Page1')}
+              />
+            </label>
             {error && <div className="panel-placeholder error">{error}</div>}
             <div className="actions space-between">
               <button type="button" className="ghost" onClick={() => navigate('/apps')} disabled={loading}>
@@ -97,16 +95,16 @@ export function NewAppPage({ onCreated }: NewAppPageProps) {
           </form>
         </div>
 
-        <div className="card outline">
-          <h4>What you’ll configure next</h4>
+        <div className="card outline stack">
+          <h4>What happens after create</h4>
           <ul className="checklist">
-            <li>Entities with nested fields, constraints, enums, and references</li>
-            <li>Data connectors (REST/GraphQL/DB) and auth profiles</li>
-            <li>Pages with drag-and-drop controls and snap-to-grid</li>
-            <li>Workflows (Kogito-ready) with user tasks and actions</li>
-            <li>Theme tokens and GitHub-like light/dark palettes</li>
+            <li>We take you to the Checklist to set entities, connectors, and pages.</li>
+            <li>Your first page is scaffolded; drag-and-drop controls and snap-to-grid are ready.</li>
+            <li>Workflows (Kogito-ready) and user tasks can be attached later.</li>
+            <li>Theme tokens ship with GitHub-like light/dark palettes.</li>
           </ul>
           <div className="pill-row">
+            <span className="pill">Drag & drop</span>
             <span className="pill">Autosave</span>
             <span className="pill">Soft delete</span>
             <span className="pill">Exportable</span>

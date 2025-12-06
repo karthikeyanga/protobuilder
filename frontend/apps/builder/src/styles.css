@@ -761,6 +761,12 @@ body {
   background: #f9fafb;
 }
 
+.card.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .card-header {
   display: flex;
   align-items: center;
