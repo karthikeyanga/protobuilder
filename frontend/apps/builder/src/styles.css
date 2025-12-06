@@ -74,11 +74,40 @@ body {
 
 .main {
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
+  grid-template-columns: 96px 260px 1fr 320px;
   gap: 8px;
   padding: 10px;
   flex: 1;
   position: relative;
+  align-items: stretch;
+}
+
+.nav-rail {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nav-title {
+  font-size: 12px;
+  color: var(--muted);
+}
+.nav-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-item.active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(34, 211, 238, 0.15));
 }
 
 .left-pane,
@@ -98,8 +127,10 @@ body {
 }
 
 .left-pane.collapsed {
-  width: 48px;
-  min-width: 48px;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border: none;
 }
 
 .left-tabs {
@@ -244,6 +275,7 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   color: var(--text);
   transition: border-color 0.15s ease, background 0.15s ease;
+  position: relative;
 }
 
 .canvas-inner.drop-over {
@@ -276,6 +308,11 @@ body {
   gap: 10px;
 }
 
+.component-surface {
+  position: relative;
+  min-height: 420px;
+}
+
 .component-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   border: 1px solid var(--border);
@@ -283,6 +320,8 @@ body {
   padding: 10px;
   box-shadow: 0 10px 30px -20px rgba(15, 23, 42, 0.35);
   cursor: grab;
+  position: absolute;
+  min-width: 180px;
 }
 .component-card[aria-pressed="true"] {
   border-color: var(--accent);
@@ -346,8 +385,10 @@ body {
 }
 
 .right-pane.collapsed {
-  width: 48px;
-  min-width: 48px;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border: none;
 }
 
 .right-header {
@@ -490,7 +531,7 @@ body {
 }
 .resizer.vertical {
   top: 8px;
-  bottom: calc(8px + var(--bottom-height, 180px));
+  bottom: 8px;
   width: 6px;
   cursor: ew-resize;
 }
@@ -578,6 +619,50 @@ body {
   padding: 8px;
   color: var(--muted);
   text-align: center;
+}
+
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.app-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--text);
+  cursor: pointer;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-card.new {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.check-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.check-title {
+  font-weight: 700;
+}
+.check-desc {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 ul {

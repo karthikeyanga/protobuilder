@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppConfig } from '@protobuilder/schema';
 import { mockAppConfig, mockPages, mockConnectors } from '../mocks/mock-app';
 
 type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
 type MainTab = 'design' | 'code';
 type RightTab = 'properties' | 'ai';
+type Mode = 'builder' | 'applications' | 'checklist';
 
 const controlIcon: Record<string, string> = {
   Text: '📝',
@@ -67,13 +68,20 @@ const builtInWidgets = [
 
 export function App() {
   const [config] = useState<AppConfig>(mockAppConfig);
-  const [components, setComponents] = useState(() => mockPages[0]?.components ?? []);
+  const [components, setComponents] = useState(() =>
+    (mockPages[0]?.components ?? []).map((c, idx) => ({
+      ...c,
+      xPct: 10 + idx * 5,
+      yPct: 10 + idx * 4
+    }))
+  );
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
   const [dropHover, setDropHover] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
   const [rightTab, setRightTab] = useState<RightTab>('properties');
+  const [mode, setMode] = useState<Mode>('builder');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [bottomCollapsed, setBottomCollapsed] = useState(false);
@@ -88,6 +96,21 @@ export function App() {
     'Alignment & Layout': true,
     'Built-in Widgets': true
   });
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const navWidth = 96;
+  const checklist = useMemo(
+    () => [
+      { id: 'entities', title: 'Define Entities', desc: 'Model fields, constraints, hints.', action: 'Open Entities' },
+      { id: 'connectors', title: 'Set up Connectors', desc: 'REST/GraphQL/DB/storage + auth.', action: 'Open Connectors' },
+      { id: 'pages', title: 'Build Pages', desc: 'Forms, lists, bindings, validations.', action: 'Open Pages' },
+      { id: 'widgets', title: 'Create Widgets', desc: 'Reusable UI with inputs/outputs.', action: 'Open Widgets' },
+      { id: 'workflows', title: 'Define Workflows', desc: 'Map tasks to pages, signals.', action: 'Open Workflows' },
+      { id: 'permissions', title: 'Permissions', desc: 'Roles, page/action access, tasks.', action: 'Set Permissions' },
+      { id: 'theme', title: 'Theme & Nav', desc: 'Branding, navigation, route exposure.', action: 'Theme & Nav' },
+      { id: 'release', title: 'Test & Release', desc: 'Mocks, approvals, deploy/export.', action: 'Release' }
+    ],
+    []
+  );
 
   const codePreview = useMemo(
     () =>
@@ -99,22 +122,30 @@ export function App() {
     [config, components]
   );
 
-  const addControl = (control: string) => {
+  const addControl = (control: string, posPct?: { xPct: number; yPct: number }) => {
     setComponents((prev) => [
       ...prev,
       {
         id: `${control}-${prev.length + 1}`,
         widgetRef: control,
-        props: { label: control, placeholder: `${control} placeholder` }
+        props: { label: control, placeholder: `${control} placeholder` },
+        xPct: posPct?.xPct ?? 10 + prev.length * 2,
+        yPct: posPct?.yPct ?? 10 + prev.length * 2
       }
     ]);
   };
 
   const removeLast = () => setComponents((prev) => prev.slice(0, -1));
-  const addLayout = (layout: string) => {
+  const addLayout = (layout: string, posPct?: { xPct: number; yPct: number }) => {
     setComponents((prev) => [
       ...prev,
-      { id: `${layout}-${prev.length + 1}`, widgetRef: layout, props: { columns: layout === 'Grid-2col' ? 2 : 3 } }
+      {
+        id: `${layout}-${prev.length + 1}`,
+        widgetRef: layout,
+        props: { columns: layout === 'Grid-2col' ? 2 : 3 },
+        xPct: posPct?.xPct ?? 10 + prev.length * 2,
+        yPct: posPct?.yPct ?? 10 + prev.length * 2
+      }
     ]);
   };
 
@@ -132,12 +163,22 @@ export function App() {
     });
   };
   const onDragEnd = () => setDragId(null);
-  const onCanvasDrop = () => {
+  const onCanvasDrop = (e: React.DragEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    let posPct = { xPct: 5, yPct: 5 };
+    if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      posPct = {
+        xPct: Math.min(95, Math.max(0, (x / rect.width) * 100)),
+        yPct: Math.min(95, Math.max(0, (y / rect.height) * 100))
+      };
+    }
     if (!dragPayload) return;
     if (dragPayload.kind === 'control') {
-      addControl(dragPayload.name);
+      addControl(dragPayload.name, posPct);
     } else {
-      addLayout(dragPayload.name);
+      addLayout(dragPayload.name, posPct);
     }
     setDragPayload(null);
     setDropHover(false);
@@ -246,8 +287,11 @@ export function App() {
   return (
     <div className="layout">
       <header className="topbar">
-        <div className="logo">ProtoBuilder — Builder</div>
+        <div className="logo">ProtoBuilder — {mode === 'builder' ? 'Builder' : mode === 'applications' ? 'Applications' : 'Checklist'}</div>
         <div className="menu-actions">
+          <button type="button" onClick={() => setMode('applications')}>Applications</button>
+          <button type="button" onClick={() => setMode('builder')}>Builder</button>
+          <button type="button" onClick={() => setMode('checklist')}>Checklist</button>
           <button type="button">New App</button>
           <button type="button">Load App</button>
           <button type="button">Save App</button>
@@ -260,8 +304,22 @@ export function App() {
         </div>
       </header>
 
-      <div className="main">
-        <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`} style={{ width: leftCollapsed ? 10 : leftWidth }}>
+      <div
+        className="main"
+        style={{
+          gridTemplateColumns: `${navWidth}px ${leftCollapsed ? '0px' : `${leftWidth}px`} 1fr ${rightCollapsed ? '0px' : `${rightWidth}px`}`
+        }}
+      >
+        <aside className="nav-rail">
+          <div className="nav-title">Navigation</div>
+          <button className={`nav-item ${mode === 'applications' ? 'active' : ''}`} onClick={() => setMode('applications')}>Applications</button>
+          <button className={`nav-item ${mode === 'builder' ? 'active' : ''}`} onClick={() => setMode('builder')}>Builder</button>
+          <button className="nav-item">Workflows</button>
+          <button className="nav-item">Users</button>
+          <button className="nav-item">Deployments</button>
+        </aside>
+
+        <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`}>
           <div className="left-tabs">
             <button className={leftTab === 'toolbox' ? 'active' : ''} onClick={() => setLeftTab('toolbox')}>
               Toolbox
@@ -384,7 +442,7 @@ export function App() {
                     ))}
                     <li>DB Sources (placeholder)</li>
                     <li>Storage Buckets (placeholder)</li>
-                  </ul>
+          </ul>
                 </div>
               )}
             </div>
@@ -405,25 +463,43 @@ export function App() {
           </div>
 
           <div className="canvas">
-            {mainTab === 'design' ? (
+            {mode === 'applications' ? (
+              <div className="apps-grid">
+                <div className="app-card new">+ New Application</div>
+                <div className="app-card">Claims Ops</div>
+                <div className="app-card">Vehicle Search</div>
+              </div>
+            ) : mode === 'checklist' ? (
+              <div className="checklist-grid">
+                {checklist.map((item) => (
+                  <div key={item.id} className="check-card">
+                    <div className="check-title">{item.title}</div>
+                    <div className="check-desc">{item.desc}</div>
+                    <button className="ghost small">{item.action}</button>
+                  </div>
+                ))}
+              </div>
+            ) : mainTab === 'design' ? (
               <div
                 className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
                 onDragOver={onCanvasDragOver}
                 onDragLeave={onCanvasDragLeave}
                 onDrop={onCanvasDrop}
+                ref={canvasRef}
               >
-                <p className="hint">Add controls from the toolbox; they appear below.</p>
+                <p className="hint">Drag controls to the canvas; position them as desired.</p>
                 <div className="chip-row">
                   <span className="chip">App: {config.appId}</span>
                   <span className="chip">Pages: {config.pages.length}</span>
                   <span className="chip">Connectors: {config.connectors.length}</span>
                 </div>
-                <div className="component-grid">
-                  {components.length === 0 && <div className="empty">No components yet. Add from the left.</div>}
+                <div className="component-surface">
+                  {components.length === 0 && <div className="empty">No components yet. Drag from the left.</div>}
                   {components.map((c) => (
                     <div
                       key={c.id}
                       className="component-card"
+                      style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
                       draggable
                       onDragStart={() => onDragStart(c.id)}
                       onDragOver={(e) => {
@@ -542,8 +618,20 @@ export function App() {
             </div>
           )}
         </aside>
-        {!leftCollapsed && <div className="resizer vertical" onMouseDown={() => setResizing({ side: 'left' })} />}
-        {!rightCollapsed && <div className="resizer vertical right" onMouseDown={() => setResizing({ side: 'right' })} />}
+        {!leftCollapsed && (
+          <div
+            className="resizer vertical"
+            style={{ left: `${navWidth + leftWidth - 3}px` }}
+            onMouseDown={() => setResizing({ side: 'left' })}
+          />
+        )}
+        {!rightCollapsed && (
+          <div
+            className="resizer vertical right"
+            style={{ right: `${rightWidth - 3}px` }}
+            onMouseDown={() => setResizing({ side: 'right' })}
+          />
+        )}
       </div>
 
       <footer className={`bottom-pane ${bottomCollapsed ? 'collapsed' : ''}`} style={{ height: bottomCollapsed ? 12 : bottomHeight }}>
