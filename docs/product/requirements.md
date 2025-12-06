@@ -3,6 +3,12 @@
 ### Overview
 ProtoBuilder is a service that enables product and business users to model entities, design UIs, define and operate workflows, and assemble complete applications with AI assistance. The service hosts both the builder and the resulting applications, supports export for independent enhancement, and integrates with an external Workbench for task operations.
 
+See also:
+- Architecture overview: [../architecture/architecture.md](../architecture/architecture.md)
+- Core ports: [../architecture/ports.md](../architecture/ports.md)
+- Data contracts: [../architecture/data-contracts.md](../architecture/data-contracts.md)
+- Config schemas: [../schemas/](../schemas/)
+
 ### Personas
 - **End User**: Uses the deployed/exported application.
 - **Internal Ops (Handlers, Underwriters, CRM, etc.)**: Operate via the external Workbench (auto-claims-ops-tool); our apps deep-link and render user task UIs, but assignment/queues live in Workbench.

@@ -6,6 +6,8 @@ Welcome to the ProtoBuilder docs. Start here to explore product requirements, ar
   - [product/requirements.md](product/requirements.md)
 - Architecture
   - [architecture/architecture.md](architecture/architecture.md)
+  - [architecture/ports.md](architecture/ports.md)
+  - [architecture/data-contracts.md](architecture/data-contracts.md)
 - Schemas
   - [schemas/app.md](schemas/app.md)
   - [schemas/entity.md](schemas/entity.md)

@@ -37,4 +37,10 @@
 - Hosted runs Quarkus by default (Spring flavor available)
 - Export bundles include the same config plus a thin bootstrap pom where the profile selects Spring or Quarkus
 
+### See also
+- Ports (core runtime interfaces): [ports.md](ports.md)
+- Data contracts (DTOs): [data-contracts.md](data-contracts.md)
+- Product requirements: [../product/requirements.md](../product/requirements.md)
+- Config schemas: [../schemas/](../schemas/)
+
 

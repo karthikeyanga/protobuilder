@@ -1,5 +1,7 @@
 ## Widget Schema (v1 skeleton)
 
+Back to docs: [../README.md](../README.md) • Related: Product [../product/requirements.md](../product/requirements.md), Architecture [../architecture/architecture.md](../architecture/architecture.md)
+
 ```json
 {
   "type": "object",
