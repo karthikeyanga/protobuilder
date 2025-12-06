@@ -56,11 +56,11 @@ export async function createApp(name: string, config: AppConfig): Promise<AppSum
   return { id: dto.id, name: dto.name };
 }
 
-export async function updateApp(id: string, config: AppConfig): Promise<void> {
+export async function updateApp(id: string, config: AppConfig, name?: string): Promise<void> {
   await fetch(`${API_BASE}/api/apps/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: id, version: config.version ?? '0.0.1', config: JSON.stringify(config) })
+    body: JSON.stringify({ name: name || id, version: config.version ?? '0.0.1', config: JSON.stringify(config) })
   }).then((res) => handle<AppDto>(res));
 }
 

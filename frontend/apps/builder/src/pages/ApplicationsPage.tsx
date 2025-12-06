@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchApps, deleteApp, type AppSummary } from '../services/appService';
+import { fetchApps, deleteApp, createApp, type AppSummary } from '../services/appService';
 
 type ApplicationsPageProps = {
   onSelectApp: (id: string, name: string) => void;
@@ -10,6 +10,7 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
   const [apps, setApps] = useState<AppSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +41,20 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
     }
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newName.trim() || 'Untitled App';
+    try {
+      const summary = await createApp(name, { appId: '', version: '0.0.1', entities: [], connectors: [], pages: [], widgets: [], workflows: [] });
+      setApps((prev) => [{ id: summary.id, name: summary.name }, ...prev.filter((a) => a.id !== 'new')]);
+      onSelectApp(summary.id, summary.name);
+      navigate(`/apps/${summary.id}/checklist`);
+      setNewName('');
+    } catch {
+      setError('Failed to create app');
+    }
+  };
+
   if (loading) {
     return <div className="panel-placeholder">Loading applications...</div>;
   }
@@ -49,18 +64,28 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
   }
 
   return (
-    <div className="apps-grid">
-      {apps.map((a) => (
-        <div key={a.id} className={`app-card ${a.id === 'new' ? 'new' : ''}`} onClick={() => handleSelect(a)}>
-          <span>{a.name}</span>
-          {a.id !== 'new' && (
-            <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
-              ×
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
+    <>
+      <form className="inline-form apps-new-form" onSubmit={handleCreate}>
+        <input
+          placeholder="New app name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <button type="submit" className="ghost small">Create</button>
+      </form>
+      <div className="apps-grid">
+        {apps.map((a) => (
+          <div key={a.id} className={`app-card ${a.id === 'new' ? 'new' : ''}`} onClick={() => handleSelect(a)}>
+            <span>{a.name}</span>
+            {a.id !== 'new' && (
+              <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

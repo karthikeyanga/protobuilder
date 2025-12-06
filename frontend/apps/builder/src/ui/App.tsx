@@ -90,6 +90,7 @@ export function App() {
   const [selectedPage, setSelectedPage] = useState<string>('');
   const [dataConnectors, setDataConnectors] = useState<string[]>([]);
   const [dataWorkflows, setDataWorkflows] = useState<string[]>([]);
+  const [selectedAppName, setSelectedAppName] = useState<string>('');
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
@@ -342,29 +343,27 @@ export function App() {
   useEffect(() => {
     if (!currentAppId) return;
     setLoadingApp(true);
-    setComponentsByPage({});
-    setPages([]);
-    setSelectedPage('');
-    setSelectedId(null);
-    setSelectedConnectorId(null);
-    setSelectedWorkflowId(null);
-    setDataConnectors([]);
-    setDataWorkflows([]);
     setLoadError(null);
     fetchAppDetail(currentAppId)
       .then((cfg) => {
         const nextConfig = cfg ?? { ...mockAppConfig, appId: currentAppId };
         setConfig(nextConfig);
+        setSelectedAppName((prev) => prev || nextConfig.appId);
+
         const loadedLayouts = (nextConfig as any).pageLayouts as ComponentsByPage | undefined;
-        if (loadedLayouts) {
-          setComponentsByPage(loadedLayouts);
-        }
-        const pageList = nextConfig.pages ?? Object.keys(loadedLayouts ?? {});
+        const layouts = loadedLayouts ?? {};
+        setComponentsByPage(layouts);
+
+        const pageList = nextConfig.pages ?? Object.keys(layouts);
         const finalPages = pageList.length > 0 ? pageList : ['Page1'];
         setPages(finalPages);
-        if (!selectedPage && finalPages.length > 0) {
-          setSelectedPage(finalPages[0]);
-        }
+        setSelectedPage((prev) => (finalPages.includes(prev) ? prev : finalPages[0] ?? 'Page1'));
+
+        // reset selections for the new app
+        setSelectedId(null);
+        setSelectedConnectorId(null);
+        setSelectedWorkflowId(null);
+
         // pre-load connectors into left-pane data list
         listConnectors(currentAppId)
           .then((rows) => {
@@ -386,13 +385,14 @@ export function App() {
       })
       .catch(() => setLoadError('Failed to load application'))
       .finally(() => setLoadingApp(false));
-  }, [currentAppId, selectedPage]);
+  }, [currentAppId]);
 
   const handleSelectApp = async (id: string, name: string) => {
     if (id === 'new') {
       try {
         const summary = await createApp(name || 'Untitled App', { ...mockAppConfig, appId: '' });
         setSelectedApp(summary.id);
+        setSelectedAppName(summary.name || name || summary.id);
         setConfig((c) => ({ ...c, appId: summary.id }));
         navigate(`/apps/${summary.id}/checklist`);
       } catch {
@@ -401,6 +401,7 @@ export function App() {
       return;
     }
     setSelectedApp(id);
+    setSelectedAppName(name || id);
     navigate(`/apps/${id}/editor`);
   };
 
@@ -428,7 +429,7 @@ export function App() {
       const nextPages = Array.from(new Set([...(config.pages ?? []), pageName]));
       setPages(nextPages);
       setConfig(nextConfig);
-      updateApp(currentAppId, nextConfig).catch(() => setStatusMsg('Save to backend failed'));
+      updateApp(currentAppId, nextConfig, selectedAppName).catch(() => setStatusMsg('Save to backend failed'));
     }
   };
 
@@ -695,7 +696,7 @@ export function App() {
                           </button>
                         </div>
                         <div className="breadcrumbs">
-                          <span>{currentAppId ?? 'Select an app'}</span>
+                          <span>{selectedAppName || currentAppId || 'Select an app'}</span>
                           {isEditor && pages.length > 0 && (
                             <span className="breadcrumb-page">
                               <select value={selectedPage} onChange={(e) => handleSelectPage(e.target.value)}>
