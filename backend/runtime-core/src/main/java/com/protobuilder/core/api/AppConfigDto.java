@@ -8,6 +8,7 @@ public record AppConfigDto(
     String name,
     String version,
     String config,
+    boolean deleted,
     Instant createdAt,
     Instant updatedAt
 ) {}

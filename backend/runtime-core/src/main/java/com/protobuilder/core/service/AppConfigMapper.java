@@ -10,6 +10,7 @@ public class AppConfigMapper {
         record.getName(),
         record.getVersion(),
         record.getConfig(),
+        record.isDeleted(),
         record.getCreatedAt(),
         record.getUpdatedAt()
     );

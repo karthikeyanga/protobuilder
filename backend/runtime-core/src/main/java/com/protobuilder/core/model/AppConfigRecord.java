@@ -23,6 +23,9 @@ public class AppConfigRecord {
   @Column(columnDefinition = "text")
   private String config;
 
+  @Column(nullable = false)
+  private boolean deleted = false;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -59,6 +62,14 @@ public class AppConfigRecord {
 
   public void setConfig(String config) {
     this.config = config;
+  }
+
+  public boolean isDeleted() {
+    return deleted;
+  }
+
+  public void setDeleted(boolean deleted) {
+    this.deleted = deleted;
   }
 
   public Instant getCreatedAt() {

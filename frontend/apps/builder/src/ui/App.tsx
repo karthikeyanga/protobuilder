@@ -14,7 +14,7 @@ import { ThemePage } from '../pages/ThemePage';
 import { UsersPage } from '../pages/UsersPage';
 import { DeploymentsPage } from '../pages/DeploymentsPage';
 import { NavRail } from './NavRail';
-import { fetchAppDetail, updateApp, createApp } from '../services/appService';
+import { fetchAppDetail, updateApp, createApp, deleteApp } from '../services/appService';
 import { listConnectors } from '../services/connectorService';
 import { listWorkflows } from '../services/workflowService';
 
@@ -439,7 +439,7 @@ export function App() {
     setStatusMsg(`Reset ${pageName}`);
   };
 
-  const handleTopbarAction = (action: 'new' | 'load' | 'save' | 'test' | 'debug' | 'deploy') => {
+  const handleTopbarAction = (action: 'new' | 'load' | 'save' | 'delete' | 'test' | 'debug' | 'deploy') => {
     switch (action) {
       case 'new':
         navigate('/apps');
@@ -449,6 +449,20 @@ export function App() {
         break;
       case 'save':
         saveCurrentPage();
+        break;
+      case 'delete':
+        if (currentAppId && window.confirm('Delete this app?')) {
+          deleteApp(currentAppId)
+            .then(() => {
+              setSelectedApp(null);
+              setComponentsByPage({});
+              setPages([]);
+              setSelectedPage('');
+              setStatusMsg('App deleted');
+              navigate('/apps');
+            })
+            .catch(() => setStatusMsg('Delete failed'));
+        }
         break;
       case 'test':
       case 'debug':
@@ -469,6 +483,7 @@ export function App() {
           <button type="button" onClick={() => handleTopbarAction('new')}>New App</button>
           <button type="button" onClick={() => handleTopbarAction('load')}>Load App</button>
           <button type="button" onClick={() => handleTopbarAction('save')} disabled={!currentAppId}>Save App</button>
+          <button type="button" onClick={() => handleTopbarAction('delete')} disabled={!currentAppId}>Delete App</button>
           <button type="button" onClick={() => navigate('/apps')}>List Apps</button>
         </div>
         <div className="top-actions">

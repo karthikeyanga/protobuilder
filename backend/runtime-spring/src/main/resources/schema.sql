@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS apps (
   name VARCHAR(255) NOT NULL,
   version VARCHAR(64) NOT NULL,
   config TEXT,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL
 );

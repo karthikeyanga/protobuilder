@@ -20,12 +20,12 @@ public class AppConfigService {
 
   @Transactional(readOnly = true)
   public List<AppConfigDto> list() {
-    return repo.findAll().stream().map(AppConfigMapper::toDto).toList();
+    return repo.findByDeletedFalse().stream().map(AppConfigMapper::toDto).toList();
   }
 
   @Transactional(readOnly = true)
   public AppConfigDto get(UUID id) {
-    return repo.findById(id).map(AppConfigMapper::toDto).orElse(null);
+    return repo.findById(id).filter(r -> !r.isDeleted()).map(AppConfigMapper::toDto).orElse(null);
   }
 
   @Transactional
@@ -35,6 +35,7 @@ public class AppConfigService {
     rec.setName(name);
     rec.setVersion(version == null || version.isBlank() ? "0.0.1" : version);
     rec.setConfig(config);
+    rec.setDeleted(false);
     rec.setCreatedAt(Instant.now());
     rec.setUpdatedAt(rec.getCreatedAt());
     return AppConfigMapper.toDto(repo.save(rec));
@@ -49,6 +50,16 @@ public class AppConfigService {
     if (config != null) rec.setConfig(config);
     rec.setUpdatedAt(Instant.now());
     return AppConfigMapper.toDto(repo.save(rec));
+  }
+
+  @Transactional
+  public boolean softDelete(UUID id) {
+    AppConfigRecord rec = repo.findById(id).orElse(null);
+    if (rec == null) return false;
+    rec.setDeleted(true);
+    rec.setUpdatedAt(Instant.now());
+    repo.save(rec);
+    return true;
   }
 }
 

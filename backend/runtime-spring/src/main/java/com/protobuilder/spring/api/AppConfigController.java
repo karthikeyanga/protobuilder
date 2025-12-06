@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,8 +32,9 @@ public class AppConfigController {
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<AppConfigDto> get(@PathVariable UUID id) {
-    AppConfigDto dto = service.get(id);
+  public ResponseEntity<AppConfigDto> get(@PathVariable("id") String id) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "appId");
+    AppConfigDto dto = service.get(uuid);
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
@@ -43,9 +45,17 @@ public class AppConfigController {
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<AppConfigDto> update(@PathVariable UUID id, @Valid @RequestBody UpdateAppRequest req) {
-    AppConfigDto dto = service.update(id, req.name(), req.version(), req.config());
+  public ResponseEntity<AppConfigDto> update(@PathVariable("id") String id, @Valid @RequestBody UpdateAppRequest req) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "appId");
+    AppConfigDto dto = service.update(uuid, req.name(), req.version(), req.config());
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
+  }
+
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable("id") String id) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "appId");
+    boolean ok = service.softDelete(uuid);
+    return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
   }
 
   public record CreateAppRequest(

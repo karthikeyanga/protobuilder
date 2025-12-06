@@ -56,6 +56,26 @@ export async function createApp(name: string, config: AppConfig): Promise<AppSum
   return { id: dto.id, name: dto.name };
 }
 
+export async function updateApp(id: string, config: AppConfig): Promise<void> {
+  await fetch(`${API_BASE}/api/apps/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: id, version: config.version ?? '0.0.1', config: JSON.stringify(config) })
+  }).then((res) => handle<AppDto>(res));
+}
+
+export async function deleteApp(id: string): Promise<void> {
+  await fetch(`${API_BASE}/api/apps/${id}`, {
+    method: 'DELETE'
+  }).then((res) => {
+    if (!res.ok && res.status !== 404) {
+      return res.text().then((t) => {
+        throw new Error(t || `HTTP ${res.status}`);
+      });
+    }
+  });
+}
+
 function safeParse(payload: string): AppConfig | null {
   try {
     return JSON.parse(payload) as AppConfig;
