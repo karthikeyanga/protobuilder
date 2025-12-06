@@ -3,16 +3,16 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:protobuilder;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${PROTO_DB_URL:jdbc:postgresql://localhost:5432/protobuilder}
+    username: ${PROTO_DB_USER:protouser}
+    password: ${PROTO_DB_PASS:protopass}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   jackson:
     serialization:
       write-dates-as-timestamps: false
