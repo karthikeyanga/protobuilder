@@ -51,17 +51,32 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
   }
 
   return (
-    <div className="apps-grid">
-      {apps.map((a) => (
-        <div key={a.id} className={`app-card ${a.id === 'new' ? 'new' : ''}`} onClick={() => handleSelect(a)}>
-          <span>{a.name}</span>
-          {a.id !== 'new' && (
-            <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
-              ×
-            </button>
-          )}
+    <div className="apps-page">
+      <div className="app-hero">
+        <div>
+          <h2>Applications</h2>
+          <p className="muted">Create, open, and manage what you build in ProtoBuilder.</p>
         </div>
-      ))}
+        <button className="primary" onClick={() => handleSelect({ id: 'new', name: '+ New Application' })}>
+          + New Application
+        </button>
+      </div>
+      <div className="apps-grid">
+        {apps.map((a) => (
+          <div key={a.id} className={`app-card ${a.id === 'new' ? 'new' : ''}`} onClick={() => handleSelect(a)}>
+            <div className="app-card-header">
+              <span className="app-name">{a.name}</span>
+              {a.id !== 'new' && (
+                <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
+                  ×
+                </button>
+              )}
+            </div>
+            {a.id !== 'new' && <p className="muted small">Click to open in the builder</p>}
+            {a.id === 'new' && <p className="muted small">Start with name, description, theme, connectors</p>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -40,38 +40,79 @@ export function NewAppPage({ onCreated }: NewAppPageProps) {
   };
 
   return (
-    <div className="panel">
-      <h2>Create a new application</h2>
-      <p className="muted">Give your application a name and optional description.</p>
-      <form className="form-vertical" onSubmit={handleSubmit}>
-        <label>
-          Application name
-          <input
-            required
-            placeholder="e.g., Claims Intake Portal"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label>
-          Description (optional)
-          <textarea
-            placeholder="What does this app do?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-          />
-        </label>
-        {error && <div className="panel-placeholder error">{error}</div>}
-        <div className="actions">
-          <button type="button" className="ghost" onClick={() => navigate('/apps')} disabled={loading}>
-            Cancel
-          </button>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Creating…' : 'Create app'}
-          </button>
+    <div className="new-app-page">
+      <div className="new-app-hero">
+        <div>
+          <p className="eyebrow">ProtoBuilder</p>
+          <h1>Spin up a new application</h1>
+          <p className="muted">Name it, add context, and we will scaffold pages, entities, and connectors.</p>
         </div>
-      </form>
+        <div className="hero-badges">
+          <span className="badge">GitHub theme</span>
+          <span className="badge">Drag & drop UI</span>
+          <span className="badge">Workflow-ready</span>
+        </div>
+      </div>
+
+      <div className="new-app-grid">
+        <div className="card glass">
+          <div className="card-header">
+            <div>
+              <h3>Application details</h3>
+              <p className="muted">We’ll use this to name the config, routes, and exports.</p>
+            </div>
+            <button className="ghost" type="button" onClick={() => navigate('/apps')}>
+              ← Back to list
+            </button>
+          </div>
+
+          <form className="form-vertical" onSubmit={handleSubmit}>
+            <label>
+              Application name
+              <input
+                required
+                placeholder="e.g., Claims Intake Portal"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label>
+              Description (optional)
+              <textarea
+                placeholder="What does this app do?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </label>
+            {error && <div className="panel-placeholder error">{error}</div>}
+            <div className="actions space-between">
+              <button type="button" className="ghost" onClick={() => navigate('/apps')} disabled={loading}>
+                Cancel
+              </button>
+              <button type="submit" className="primary" disabled={loading}>
+                {loading ? 'Creating…' : 'Create app'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="card outline">
+          <h4>What you’ll configure next</h4>
+          <ul className="checklist">
+            <li>Entities with nested fields, constraints, enums, and references</li>
+            <li>Data connectors (REST/GraphQL/DB) and auth profiles</li>
+            <li>Pages with drag-and-drop controls and snap-to-grid</li>
+            <li>Workflows (Kogito-ready) with user tasks and actions</li>
+            <li>Theme tokens and GitHub-like light/dark palettes</li>
+          </ul>
+          <div className="pill-row">
+            <span className="pill">Autosave</span>
+            <span className="pill">Soft delete</span>
+            <span className="pill">Exportable</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
