@@ -1,6 +1,5 @@
 package com.protobuilder.spring.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.protobuilder.core.api.AppConfigDto;
 import com.protobuilder.core.model.AppConfigRecord;
 import com.protobuilder.core.service.AppConfigMapper;
@@ -30,7 +29,7 @@ public class AppConfigService {
   }
 
   @Transactional
-  public AppConfigDto create(String name, String version, JsonNode config) {
+  public AppConfigDto create(String name, String version, String config) {
     AppConfigRecord rec = new AppConfigRecord();
     rec.setId(UUID.randomUUID());
     rec.setName(name);
@@ -42,7 +41,7 @@ public class AppConfigService {
   }
 
   @Transactional
-  public AppConfigDto update(UUID id, String name, String version, JsonNode config) {
+  public AppConfigDto update(UUID id, String name, String version, String config) {
     AppConfigRecord rec = repo.findById(id).orElse(null);
     if (rec == null) return null;
     if (name != null) rec.setName(name);

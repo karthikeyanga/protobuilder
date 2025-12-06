@@ -1,6 +1,5 @@
 package com.protobuilder.spring.api;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.protobuilder.core.api.AppConfigDto;
 import com.protobuilder.spring.service.AppConfigService;
 import jakarta.validation.Valid;
@@ -52,13 +51,13 @@ public class AppConfigController {
   public record CreateAppRequest(
       @NotBlank String name,
       String version,
-      JsonNode config
+      String config
   ) {}
 
   public record UpdateAppRequest(
       String name,
       String version,
-      JsonNode config
+      String config
   ) {}
 }
 

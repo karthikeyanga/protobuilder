@@ -1,6 +1,5 @@
 package com.protobuilder.core.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -22,7 +21,7 @@ public class AppConfigRecord {
   private String version;
 
   @Column(columnDefinition = "text")
-  private JsonNode config;
+  private String config;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
@@ -54,11 +53,11 @@ public class AppConfigRecord {
     this.version = version;
   }
 
-  public JsonNode getConfig() {
+  public String getConfig() {
     return config;
   }
 
-  public void setConfig(JsonNode config) {
+  public void setConfig(String config) {
     this.config = config;
   }
 
