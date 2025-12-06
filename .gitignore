@@ -2,9 +2,26 @@ node_modules
 dist
 .turbo
 .parcel-cache
+.vite
 .DS_Store
 *.log
+npm-debug.log*
+.npm/
+*.tmp
+.env
+.env.local
+.env.*.local
+.eslintcache
 *.tsbuildinfo
 coverage
+.idea/
+.vscode/
+
+# Frontend workspace
+frontend/node_modules
+frontend/dist
+frontend/.parcel-cache
+frontend/.turbo
+frontend/.vite
 
 
