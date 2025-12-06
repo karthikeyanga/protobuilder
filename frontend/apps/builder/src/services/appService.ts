@@ -1,31 +1,67 @@
 import type { AppConfig } from '@protobuilder/schema';
 
 export type AppSummary = { id: string; name: string };
+type AppDto = {
+  id: string;
+  name: string;
+  version: string;
+  config?: string | null;
+};
 
-// Mock service; replace with real API calls later.
-const mockApps: AppSummary[] = [
-  { id: 'new', name: '+ New Application' },
-  { id: 'claims', name: 'Claims Ops' },
-  { id: 'vehicle', name: 'Vehicle Search' }
-];
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+
+const defaultConfig = (id: string): AppConfig => ({
+  appId: id,
+  version: '0.0.1',
+  entities: [],
+  connectors: [],
+  pages: [],
+  widgets: [],
+  workflows: []
+});
+
+async function handle<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `HTTP ${res.status}`);
+  }
+  return (await res.json()) as T;
+}
 
 export async function fetchApps(): Promise<AppSummary[]> {
-  return Promise.resolve(mockApps);
+  const res = await fetch(`${API_BASE}/api/apps`);
+  const data = await handle<AppDto[]>(res);
+  if (!Array.isArray(data) || data.length === 0) {
+    return [{ id: 'new', name: '+ New Application' }];
+  }
+  return [{ id: 'new', name: '+ New Application' }, ...data.map((d) => ({ id: d.id, name: d.name }))];
 }
 
 export async function fetchAppDetail(id: string): Promise<AppConfig | null> {
-  if (id === 'claims' || id === 'vehicle') {
-    return Promise.resolve({
-      appId: id,
-      version: '0.0.1',
-      entities: [],
-      connectors: [],
-      pages: [],
-      widgets: [],
-      workflows: []
-    });
+  const res = await fetch(`${API_BASE}/api/apps/${id}`);
+  if (res.status === 404) return defaultConfig(id);
+  const dto = await handle<AppDto>(res);
+  if (!dto) return defaultConfig(id);
+  const parsed = dto.config ? safeParse(dto.config) : null;
+  return parsed ?? defaultConfig(dto.id ?? id);
+}
+
+export async function createApp(name: string, config: AppConfig): Promise<AppSummary> {
+  const res = await fetch(`${API_BASE}/api/apps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, version: config.version ?? '0.0.1', config: JSON.stringify(config) })
+  });
+  const dto = await handle<AppDto>(res);
+  return { id: dto.id, name: dto.name };
+}
+
+function safeParse(payload: string): AppConfig | null {
+  try {
+    return JSON.parse(payload) as AppConfig;
+  } catch {
+    return null;
   }
-  return Promise.resolve(null);
 }
 
 

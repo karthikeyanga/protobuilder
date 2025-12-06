@@ -11,11 +11,16 @@ import { PagesPage } from '../pages/PagesPage';
 import { WidgetsPage } from '../pages/WidgetsPage';
 import { PermissionsPage } from '../pages/PermissionsPage';
 import { ThemePage } from '../pages/ThemePage';
+import { UsersPage } from '../pages/UsersPage';
+import { DeploymentsPage } from '../pages/DeploymentsPage';
 import { NavRail } from './NavRail';
+import { fetchAppDetail } from '../services/appService';
 
 type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
 type MainTab = 'design' | 'code';
 type RightTab = 'properties' | 'ai';
+type ComponentsByPage = Record<string, typeof mockPages[0]['components']>;
+const LOCAL_KEY = (appId: string, page: string) => `pb:${appId}:page:${page}`;
 
 const controlIcon: Record<string, string> = {
   Text: '📝',
@@ -77,14 +82,24 @@ const builtInWidgets = [
 ];
 
 export function App() {
-  const [config] = useState<AppConfig>(mockAppConfig);
-  const [components, setComponents] = useState(() =>
-    (mockPages[0]?.components ?? []).map((c, idx) => ({
-      ...c,
-      xPct: 10 + idx * 5,
-      yPct: 10 + idx * 4
-    }))
-  );
+  const [config, setConfig] = useState<AppConfig>(mockAppConfig);
+  const initialComponents = useMemo<ComponentsByPage>(() => {
+    const seeded: ComponentsByPage = {};
+    mockPages.forEach((p) => {
+      const fromStorage = window.localStorage.getItem(LOCAL_KEY(config.appId, p.name));
+      const parsed = fromStorage ? (JSON.parse(fromStorage) as typeof p.components) : null;
+      const base = parsed ?? p.components ?? [];
+      seeded[p.name] = base.map((c, idx) => ({
+        ...c,
+        xPct: c.xPct ?? 10 + idx * 5,
+        yPct: c.yPct ?? 10 + idx * 4
+      }));
+    });
+    return seeded;
+  }, [config.appId]);
+
+  const [componentsByPage, setComponentsByPage] = useState<ComponentsByPage>(initialComponents);
+  const [selectedPage, setSelectedPage] = useState<string>(mockPages[0]?.name ?? '');
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
@@ -92,7 +107,6 @@ export function App() {
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
   const [rightTab, setRightTab] = useState<RightTab>('properties');
-  const [mode, setMode] = useState<Mode>('applications');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [bottomCollapsed, setBottomCollapsed] = useState(false);
@@ -101,6 +115,11 @@ export function App() {
   const [bottomHeight, setBottomHeight] = useState(160);
   const [resizing, setResizing] = useState<{ side: 'left' | 'right' | 'bottom' | null }>({ side: null });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [loadingApp, setLoadingApp] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [toolboxOpen, setToolboxOpen] = useState<Record<string, boolean>>({
     'Basic UI': true,
     Layout: true,
@@ -129,15 +148,43 @@ export function App() {
   const codePreview = useMemo(
     () =>
       `// generated UI (placeholder)\nexport const config = ${JSON.stringify(
-        { ...config, pages: [{ ...mockPages[0], components }] },
+        { ...config, pages: [{ ...mockPages.find((p) => p.name === selectedPage), components: componentsByPage[selectedPage] ?? [] }] },
         null,
         2
       )};`,
-    [config, components]
+    [config, selectedPage, componentsByPage]
   );
 
+  const savePageToStorage = (pageName: string, comps: ComponentsByPage[keyof ComponentsByPage]) => {
+    try {
+      window.localStorage.setItem(LOCAL_KEY(config.appId, pageName), JSON.stringify(comps));
+      setStatusMsg(`Saved ${pageName}`);
+    } catch {
+      setStatusMsg('Save failed');
+    }
+  };
+
+  const loadPageFromStorage = (pageName: string) => {
+    const raw = window.localStorage.getItem(LOCAL_KEY(config.appId, pageName));
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as ComponentsByPage[keyof ComponentsByPage];
+    } catch {
+      return null;
+    }
+  };
+
+  const updatePageComponents = (updater: (prev: ComponentsByPage[keyof ComponentsByPage]) => ComponentsByPage[keyof ComponentsByPage]) => {
+    setComponentsByPage((prev) => {
+      const current = prev[selectedPage] ?? [];
+      const next = updater(current);
+      const merged = { ...prev, [selectedPage]: next };
+      return merged;
+    });
+  };
+
   const addControl = (control: string, posPct?: { xPct: number; yPct: number }) => {
-    setComponents((prev) => [
+    updatePageComponents((prev) => [
       ...prev,
       {
         id: `${control}-${prev.length + 1}`,
@@ -149,9 +196,9 @@ export function App() {
     ]);
   };
 
-  const removeLast = () => setComponents((prev) => prev.slice(0, -1));
+  const removeLast = () => updatePageComponents((prev) => prev.slice(0, -1));
   const addLayout = (layout: string, posPct?: { xPct: number; yPct: number }) => {
-    setComponents((prev) => [
+    updatePageComponents((prev) => [
       ...prev,
       {
         id: `${layout}-${prev.length + 1}`,
@@ -165,7 +212,7 @@ export function App() {
 
   const onDragStart = (id: string) => setDragId(id);
   const onDragOver = (targetId: string) => {
-    setComponents((prev) => {
+    updatePageComponents((prev) => {
       if (!dragId || dragId === targetId) return prev;
       const fromIdx = prev.findIndex((c) => c.id === dragId);
       const toIdx = prev.findIndex((c) => c.id === targetId);
@@ -226,14 +273,12 @@ export function App() {
   }, [resizing]);
 
   const updateSelectedProp = (key: string, value: unknown) => {
-    setComponents((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, props: { ...(c.props ?? {}), [key]: value } } : c))
-    );
+    updatePageComponents((prev) => prev.map((c) => (c.id === selectedId ? { ...c, props: { ...(c.props ?? {}), [key]: value } } : c)));
   };
 
-  const selectedComponent = components.find((c) => c.id === selectedId) || null;
+  const selectedComponent = componentsByPage[selectedPage]?.find((c) => c.id === selectedId) || null;
 
-  const renderControl = (c: typeof components[number]) => {
+  const renderControl = (c: ComponentsByPage[keyof ComponentsByPage][number]) => {
     const common = { className: 'control-preview' };
     switch (c.widgetRef) {
       case 'Text':
@@ -304,9 +349,70 @@ export function App() {
   const currentAppId = params.appId ?? selectedApp;
   const isEditor = location.pathname.includes('/editor');
 
+  useEffect(() => {
+    if (!currentAppId) return;
+    setLoadingApp(true);
+    setLoadError(null);
+    fetchAppDetail(currentAppId)
+      .then((cfg) => {
+        const nextConfig = cfg ?? { ...mockAppConfig, appId: currentAppId };
+        setConfig(nextConfig);
+        setStatusMsg(`Loaded ${nextConfig.appId}`);
+      })
+      .catch(() => setLoadError('Failed to load application'))
+      .finally(() => setLoadingApp(false));
+  }, [currentAppId]);
+
   const handleSelectApp = (id: string, name: string) => {
     setSelectedApp(id === 'new' ? 'untitled-app' : id);
     navigate(id === 'new' ? `/apps/untitled-app/checklist` : `/apps/${id}/editor`);
+  };
+
+  const handleSelectPage = (pageName: string) => {
+    setSelectedId(null);
+    setSelectedPage(pageName);
+    const stored = loadPageFromStorage(pageName);
+    if (stored) {
+      setComponentsByPage((prev) => ({ ...prev, [pageName]: stored }));
+    }
+  };
+
+  const saveCurrentPage = () => {
+    const comps = componentsByPage[selectedPage] ?? [];
+    savePageToStorage(selectedPage, comps);
+  };
+
+  const resetCurrentPage = () => {
+    const mock = mockPages.find((p) => p.name === selectedPage);
+    if (!mock) return;
+    const base = mock.components ?? [];
+    const next = base.map((c, idx) => ({
+      ...c,
+      xPct: c.xPct ?? 10 + idx * 5,
+      yPct: c.yPct ?? 10 + idx * 4
+    }));
+    setComponentsByPage((prev) => ({ ...prev, [selectedPage]: next }));
+    window.localStorage.removeItem(LOCAL_KEY(config.appId, selectedPage));
+    setStatusMsg(`Reset ${selectedPage}`);
+  };
+
+  const handleTopbarAction = (action: 'new' | 'load' | 'save' | 'test' | 'debug' | 'deploy') => {
+    switch (action) {
+      case 'new':
+        navigate('/apps');
+        break;
+      case 'load':
+        setStatusMsg('Load app coming soon');
+        break;
+      case 'save':
+        saveCurrentPage();
+        break;
+      case 'test':
+      case 'debug':
+      case 'deploy':
+        setStatusMsg(`${action} is not wired yet`);
+        break;
+    }
   };
 
   return (
@@ -317,15 +423,15 @@ export function App() {
           <button type="button" onClick={() => navigate('/apps')}>Applications</button>
           <button type="button" onClick={() => currentAppId && navigate(`/apps/${currentAppId}/editor`)} disabled={!currentAppId}>Builder</button>
           <button type="button" onClick={() => currentAppId && navigate(`/apps/${currentAppId}/checklist`)} disabled={!currentAppId}>Checklist</button>
-          <button type="button">New App</button>
-          <button type="button">Load App</button>
-          <button type="button">Save App</button>
-          <button type="button">List Apps</button>
+          <button type="button" onClick={() => handleTopbarAction('new')}>New App</button>
+          <button type="button" onClick={() => handleTopbarAction('load')}>Load App</button>
+          <button type="button" onClick={() => handleTopbarAction('save')} disabled={!currentAppId}>Save App</button>
+          <button type="button" onClick={() => navigate('/apps')}>List Apps</button>
         </div>
         <div className="top-actions">
-          <button type="button">Test</button>
-          <button type="button">Debug</button>
-          <button type="button">Deploy</button>
+          <button type="button" onClick={() => handleTopbarAction('test')}>Test</button>
+          <button type="button" onClick={() => handleTopbarAction('debug')}>Debug</button>
+          <button type="button" onClick={() => handleTopbarAction('deploy')}>Deploy</button>
         </div>
       </header>
 
@@ -435,9 +541,18 @@ export function App() {
                 {leftTab === 'pages' && (
                   <div className="group">
                     <div className="group-title">Pages</div>
-                    <ul>
+                    <ul className="select-list">
                       {mockPages.map((p) => (
-                        <li key={p.name}>{p.name}</li>
+                        <li
+                          key={p.name}
+                          className={p.name === selectedPage ? 'active' : ''}
+                          onClick={() => handleSelectPage(p.name)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSelectPage(p.name)}
+                        >
+                          {p.name}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -445,23 +560,64 @@ export function App() {
                 {leftTab === 'workflows' && (
                   <div className="group">
                     <div className="group-title">Workflows</div>
-                    <ul>
-                      <li>VehicleLookupFlow</li>
-                      <li>ClaimsReviewFlow</li>
-                      <li>Custom Task Nodes (placeholder)</li>
+                    <ul className="select-list">
+                      <li
+                        className={selectedWorkflowId === 'VehicleLookupFlow' ? 'active' : ''}
+                        onClick={() => {
+                          setSelectedWorkflowId('VehicleLookupFlow');
+                          setSelectedConnectorId(null);
+                          setSelectedId(null);
+                        }}
+                      >
+                        VehicleLookupFlow
+                      </li>
+                      <li
+                        className={selectedWorkflowId === 'ClaimsReviewFlow' ? 'active' : ''}
+                        onClick={() => {
+                          setSelectedWorkflowId('ClaimsReviewFlow');
+                          setSelectedConnectorId(null);
+                          setSelectedId(null);
+                        }}
+                      >
+                        ClaimsReviewFlow
+                      </li>
+                      <li
+                        className={selectedWorkflowId === 'CustomTask' ? 'active' : ''}
+                        onClick={() => {
+                          setSelectedWorkflowId('CustomTask');
+                          setSelectedConnectorId(null);
+                          setSelectedId(null);
+                        }}
+                      >
+                        Custom Task Nodes
+                      </li>
                     </ul>
                   </div>
                 )}
                 {leftTab === 'data' && (
                   <div className="group">
                     <div className="group-title">Connectors & Data</div>
-                    <ul>
+                    <ul className="select-list">
                       {mockConnectors.map((c) => (
-                        <li key={c.id}>{c.id}</li>
+                        <li
+                          key={c.id}
+                          className={selectedConnectorId === c.id ? 'active' : ''}
+                          onClick={() => {
+                            setSelectedConnectorId(c.id);
+                            setSelectedWorkflowId(null);
+                            setSelectedId(null);
+                          }}
+                        >
+                          {c.id} ({c.kind})
+                        </li>
                       ))}
-                      <li>DB Sources (placeholder)</li>
-                      <li>Storage Buckets (placeholder)</li>
-          </ul>
+                      <li className={selectedConnectorId === 'db-source' ? 'active' : ''} onClick={() => setSelectedConnectorId('db-source')}>
+                        DB Sources (placeholder)
+                      </li>
+                      <li className={selectedConnectorId === 'storage' ? 'active' : ''} onClick={() => setSelectedConnectorId('storage')}>
+                        Storage Buckets (placeholder)
+                      </li>
+                    </ul>
                   </div>
                 )}
               </div>
@@ -480,10 +636,16 @@ export function App() {
             <Route path="/apps/:appId/widgets" element={<WidgetsPage />} />
             <Route path="/apps/:appId/permissions" element={<PermissionsPage />} />
             <Route path="/apps/:appId/theme" element={<ThemePage />} />
+            <Route path="/workflows" element={<WorkflowsPage global />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/deployments" element={<DeploymentsPage />} />
             <Route
               path="/apps/:appId/editor"
               element={
                 <div className="canvas">
+                  {loadingApp && <div className="panel-placeholder">Loading application...</div>}
+                  {loadError && !loadingApp && <div className="panel-placeholder error">{loadError}</div>}
+                  {!loadingApp && !loadError && (
                   <div className="tab-bar">
                     <div className="tabs">
                       <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
@@ -493,7 +655,20 @@ export function App() {
                         Code
                       </button>
                     </div>
-                    <div className="breadcrumbs">{currentAppId ?? 'Select an app'}</div>
+                    <div className="breadcrumbs">
+                      <span>{currentAppId ?? 'Select an app'}</span>
+                      {isEditor && (
+                        <span className="breadcrumb-page">
+                          <select value={selectedPage} onChange={(e) => handleSelectPage(e.target.value)}>
+                            {mockPages.map((p) => (
+                              <option key={p.name} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {mainTab === 'design' ? (
@@ -512,7 +687,7 @@ export function App() {
                       </div>
                       <div className="chip-row">
                         <span className="chip">App: {currentAppId ?? config.appId}</span>
-                        <span className="chip">Pages: {config.pages.length}</span>
+                        <span className="chip">Page: {selectedPage}</span>
                         <span className="chip">Connectors: {config.connectors.length}</span>
                       </div>
                       <div className="stage-row">
@@ -523,8 +698,8 @@ export function App() {
                         ))}
                       </div>
                       <div className="component-surface">
-                        {components.length === 0 && <div className="empty">No components yet. Drag from the left.</div>}
-                        {components.map((c) => (
+                        {(componentsByPage[selectedPage]?.length ?? 0) === 0 && <div className="empty">No components yet. Drag from the left.</div>}
+                        {(componentsByPage[selectedPage] ?? []).map((c) => (
                           <div
                             key={c.id}
                             className="component-card"
@@ -547,13 +722,20 @@ export function App() {
                         ))}
                       </div>
                       <div className="canvas-actions">
-                        <button type="button" className="ghost" onClick={removeLast} disabled={components.length === 0}>
+                        <button type="button" className="ghost" onClick={removeLast} disabled={(componentsByPage[selectedPage]?.length ?? 0) === 0}>
                           Remove last
+                        </button>
+                        <button type="button" className="ghost" onClick={saveCurrentPage} disabled={!currentAppId}>
+                          Save page
+                        </button>
+                        <button type="button" className="ghost" onClick={resetCurrentPage}>
+                          Reset page
                         </button>
                       </div>
                     </div>
                   ) : (
                     <pre className="code-view">{codePreview}</pre>
+                  )}
                   )}
                 </div>
               }
@@ -633,19 +815,43 @@ export function App() {
                         </>
                       )}
                     </div>
+                  ) : selectedConnectorId ? (
+                    <div className="props-panel">
+                      <div className="prop-field">
+                        <label>Connector</label>
+                        <div>{selectedConnectorId}</div>
+                      </div>
+                      <div className="prop-field">
+                        <label>Details</label>
+                        <div className="muted">Configure bindings from canvas coming soon.</div>
+                      </div>
+                    </div>
+                  ) : selectedWorkflowId ? (
+                    <div className="props-panel">
+                      <div className="prop-field">
+                        <label>Workflow</label>
+                        <div>{selectedWorkflowId}</div>
+                      </div>
+                      <div className="prop-field">
+                        <label>Steps</label>
+                        <ul className="muted">
+                          <li>Start → Task → End (placeholder)</li>
+                        </ul>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="muted">Select a component to edit properties.</div>
+                    <div className="muted">Select a component, workflow, or connector to see details.</div>
                   )
                 ) : (
                   <div className="ai-panel">
                     <div className="ai-history">
-                      <div className="ai-bubble">Ask AI to build a Vehicle Search form.</div>
-                      <div className="ai-bubble secondary">"Add a workflow step for document review."</div>
+                      <div className="ai-bubble secondary">AI assist coming soon</div>
                     </div>
                     <div className="ai-input-row">
-                      <button className="ghost small">📎 Upload mock</button>
-                      <input className="ai-input" placeholder="Ask AI..." />
-                      <button className="ghost small">Send</button>
+                      <input className="ai-input" placeholder="Not yet enabled" disabled />
+                      <button className="ghost small" disabled>
+                        Send
+                      </button>
                     </div>
                   </div>
                 )}
@@ -680,6 +886,7 @@ export function App() {
           <div className="bottom-content">
             <div>[info] Mock preview ready</div>
             <div>[warn] Connectors not wired (mock mode)</div>
+            {statusMsg && <div>[status] {statusMsg}</div>}
           </div>
         )}
       </footer>
