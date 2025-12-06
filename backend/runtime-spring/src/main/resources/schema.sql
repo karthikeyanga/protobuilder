@@ -1,10 +1,10 @@
 CREATE TABLE IF NOT EXISTS apps (
   id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  version TEXT NOT NULL,
-  config JSONB,
-  created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL
+  name VARCHAR(255) NOT NULL,
+  version VARCHAR(64) NOT NULL,
+  config TEXT,
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
 );
 
 

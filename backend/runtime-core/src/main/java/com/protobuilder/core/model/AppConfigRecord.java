@@ -21,7 +21,7 @@ public class AppConfigRecord {
   @Column(nullable = false)
   private String version;
 
-  @Column(columnDefinition = "jsonb")
+  @Column(columnDefinition = "text")
   private JsonNode config;
 
   @Column(name = "created_at", nullable = false)
