@@ -98,6 +98,8 @@ export function App() {
   });
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const navWidth = 96;
+  const [snapGrid, setSnapGrid] = useState(true);
+  const snap = (v: number) => (snapGrid ? Math.min(100, Math.max(0, Math.round(v / 5) * 5)) : Math.min(100, Math.max(0, v)));
   const checklist = useMemo(
     () => [
       { id: 'entities', title: 'Define Entities', desc: 'Model fields, constraints, hints.', action: 'Open Entities' },
@@ -170,8 +172,8 @@ export function App() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       posPct = {
-        xPct: Math.min(95, Math.max(0, (x / rect.width) * 100)),
-        yPct: Math.min(95, Math.max(0, (y / rect.height) * 100))
+        xPct: snap((x / rect.width) * 100),
+        yPct: snap((y / rect.height) * 100)
       };
     }
     if (!dragPayload) return;
@@ -487,7 +489,12 @@ export function App() {
                 onDrop={onCanvasDrop}
                 ref={canvasRef}
               >
-                <p className="hint">Drag controls to the canvas; position them as desired.</p>
+                <div className="canvas-toolbar">
+                  <p className="hint">Drag controls to the canvas; position them as desired.</p>
+                  <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
+                    {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
+                  </button>
+                </div>
                 <div className="chip-row">
                   <span className="chip">App: {config.appId}</span>
                   <span className="chip">Pages: {config.pages.length}</span>

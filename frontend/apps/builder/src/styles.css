@@ -278,6 +278,14 @@ body {
   position: relative;
 }
 
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .canvas-inner.drop-over {
   border-color: var(--accent);
   background: linear-gradient(180deg, rgba(168, 85, 247, 0.12), rgba(34, 211, 238, 0.08));
