@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 're
 import type { AppConfig } from '@protobuilder/schema';
 import { mockAppConfig } from '../mocks/mock-app';
 import { ApplicationsPage } from '../pages/ApplicationsPage';
+import { NewAppPage } from '../pages/NewAppPage';
 import { ChecklistPage } from '../pages/ChecklistPage';
 import { EntitiesPage } from '../pages/EntitiesPage';
 import { ConnectorsPage } from '../pages/ConnectorsPage';
@@ -14,7 +15,7 @@ import { ThemePage } from '../pages/ThemePage';
 import { UsersPage } from '../pages/UsersPage';
 import { DeploymentsPage } from '../pages/DeploymentsPage';
 import { NavRail } from './NavRail';
-import { fetchAppDetail, updateApp, createApp, deleteApp } from '../services/appService';
+import { fetchAppDetail, updateApp, deleteApp } from '../services/appService';
 import { listConnectors } from '../services/connectorService';
 import { listWorkflows } from '../services/workflowService';
 
@@ -387,22 +388,20 @@ export function App() {
       .finally(() => setLoadingApp(false));
   }, [currentAppId]);
 
-  const handleSelectApp = async (id: string, name: string) => {
+  const handleSelectApp = (id: string, name: string) => {
     if (id === 'new') {
-      try {
-        const summary = await createApp(name || 'Untitled App', { ...mockAppConfig, appId: '' });
-        setSelectedApp(summary.id);
-        setSelectedAppName(summary.name || name || summary.id);
-        setConfig((c) => ({ ...c, appId: summary.id }));
-        navigate(`/apps/${summary.id}/checklist`);
-      } catch {
-        setStatusMsg('Failed to create app');
-      }
+      navigate('/apps/new');
       return;
     }
     setSelectedApp(id);
     setSelectedAppName(name || id);
     navigate(`/apps/${id}/editor`);
+  };
+
+  const handleAppCreated = (id: string, name: string) => {
+    setSelectedApp(id);
+    setSelectedAppName(name || id);
+    setConfig((c) => ({ ...c, appId: id }));
   };
 
   const handleSelectPage = (pageName: string) => {
@@ -666,6 +665,7 @@ export function App() {
 
         <section className="center-pane">
           <Routes>
+            <Route path="/apps/new" element={<NewAppPage onCreated={handleAppCreated} />} />
             <Route path="/apps" element={<ApplicationsPage onSelectApp={(id, name) => handleSelectApp(id, name)} />} />
             <Route path="/apps/:appId/checklist" element={<ChecklistPage appName={currentAppId} />} />
             <Route path="/apps/:appId/entities" element={<EntitiesPage />} />
