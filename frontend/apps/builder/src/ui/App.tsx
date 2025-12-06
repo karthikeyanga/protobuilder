@@ -75,13 +75,14 @@ export function App() {
       yPct: 10 + idx * 4
     }))
   );
+  const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<{ kind: 'control' | 'layout'; name: string } | null>(null);
   const [dropHover, setDropHover] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
   const [rightTab, setRightTab] = useState<RightTab>('properties');
-  const [mode, setMode] = useState<Mode>('builder');
+  const [mode, setMode] = useState<Mode>('applications');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [bottomCollapsed, setBottomCollapsed] = useState(false);
@@ -100,6 +101,11 @@ export function App() {
   const navWidth = 96;
   const [snapGrid, setSnapGrid] = useState(true);
   const snap = (v: number) => (snapGrid ? Math.min(100, Math.max(0, Math.round(v / 5) * 5)) : Math.min(100, Math.max(0, v)));
+  const apps = [
+    { id: 'new', name: '+ New Application' },
+    { id: 'claims', name: 'Claims Ops' },
+    { id: 'vehicle', name: 'Vehicle Search' }
+  ];
   const checklist = useMemo(
     () => [
       { id: 'entities', title: 'Define Entities', desc: 'Model fields, constraints, hints.', action: 'Open Entities' },
