@@ -111,11 +111,7 @@ export function App() {
   const navWidth = 96;
   const [snapGrid, setSnapGrid] = useState(true);
   const snap = (v: number) => (snapGrid ? Math.min(100, Math.max(0, Math.round(v / 5) * 5)) : Math.min(100, Math.max(0, v)));
-  const apps = [
-    { id: 'new', name: '+ New Application' },
-    { id: 'claims', name: 'Claims Ops' },
-    { id: 'vehicle', name: 'Vehicle Search' }
-  ];
+  const stages = ['Entities', 'Connectors', 'Workflows', 'Pages', 'Widgets', 'Permissions', 'Theme/Nav', 'Release'];
   const checklist = useMemo(
     () => [
       { id: 'entities', title: 'Define Entities', desc: 'Model fields, constraints, hints.', action: 'Open Entities' },
@@ -465,12 +461,12 @@ export function App() {
                       ))}
                       <li>DB Sources (placeholder)</li>
                       <li>Storage Buckets (placeholder)</li>
-                    </ul>
+          </ul>
                   </div>
                 )}
               </div>
             )}
-          </aside>
+        </aside>
         )}
 
         <section className="center-pane">
@@ -653,9 +649,9 @@ export function App() {
                     </div>
                   </div>
                 )}
-              </div>
+          </div>
             )}
-          </aside>
+        </aside>
         )}
         {isEditor && !leftCollapsed && (
           <div
