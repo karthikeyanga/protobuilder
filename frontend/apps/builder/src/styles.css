@@ -1,16 +1,16 @@
 :root {
-  --bg: #0f172a;
-  --bg-soft: #0b1224;
-  --panel: #121c34;
-  --panel-2: #162441;
-  --border: #1f2c4d;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --accent: #a855f7;
-  --accent-2: #ec4899;
-  --accent-3: #22d3ee;
-  --glass: rgba(255, 255, 255, 0.06);
-  --shadow: 0 20px 60px -30px rgba(0, 0, 0, 0.8);
+  --bg: #f6f8fa;
+  --bg-soft: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f6f8fa;
+  --border: #d0d7de;
+  --text: #24292f;
+  --muted: #57606a;
+  --accent: #0969da;
+  --accent-2: #1f883d;
+  --accent-3: #6e7781;
+  --glass: rgba(255, 255, 255, 0.75);
+  --shadow: 0 10px 40px -22px rgba(17, 24, 39, 0.25);
 }
 
 * {
@@ -28,8 +28,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.16), transparent 35%),
-    radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.18), transparent 35%), var(--bg);
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -38,7 +37,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: linear-gradient(90deg, #111827, #111827 40%, rgba(168, 85, 247, 0.25));
+  background: #f6f8fa;
   color: var(--text);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -47,13 +46,13 @@ body {
 
 .top-actions button {
   margin-left: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--accent);
+  color: #ffffff;
+  border: 1px solid #0a5ec2;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 12px 30px -20px rgba(236, 72, 153, 0.8);
+  box-shadow: 0 6px 18px -12px rgba(9, 105, 218, 0.6);
 }
 
 .menu-actions {
@@ -61,15 +60,15 @@ body {
   gap: 6px;
 }
 .menu-actions button {
-  background: rgba(255, 255, 255, 0.06);
+  background: #ffffff;
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 6px 10px;
   cursor: pointer;
 }
 .menu-actions button:hover {
-  border-color: rgba(168, 85, 247, 0.5);
+  border-color: var(--accent);
 }
 
 .main {
@@ -83,9 +82,9 @@ body {
 }
 
 .nav-rail {
-  background: var(--panel);
+  background: #f6f8fa;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 8px;
   display: flex;
@@ -97,17 +96,17 @@ body {
   color: var(--muted);
 }
 .nav-item {
-  background: rgba(255, 255, 255, 0.04);
+  background: #ffffff;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
   padding: 8px;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 .nav-item.active {
   border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(34, 211, 238, 0.15));
+  background: rgba(9, 105, 218, 0.1);
 }
 
 .left-pane,
@@ -246,15 +245,15 @@ body {
   margin-right: 6px;
   border: none;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f6f8fa;
   cursor: pointer;
   color: var(--text);
 }
 
 .tabs button.active {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(34, 211, 238, 0.25));
+  background: rgba(9, 105, 218, 0.12);
   font-weight: 600;
-  color: white;
+  color: var(--text);
 }
 
 .breadcrumbs {
@@ -269,10 +268,10 @@ body {
 
 .canvas-inner {
   min-height: 260px;
-  border: 1px dashed #1f2c4d;
+  border: 1px dashed var(--border);
   border-radius: 12px;
   padding: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  background: #ffffff;
   color: var(--text);
   transition: border-color 0.15s ease, background 0.15s ease;
   position: relative;
@@ -288,7 +287,7 @@ body {
 
 .canvas-inner.drop-over {
   border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.12), rgba(34, 211, 238, 0.08));
+  background: rgba(9, 105, 218, 0.08);
 }
 
 .hint {
@@ -303,8 +302,8 @@ body {
 }
 
 .chip {
-  background: linear-gradient(135deg, var(--accent-3), var(--accent));
-  color: #0b1224;
+  background: rgba(9, 105, 218, 0.12);
+  color: var(--text);
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 12px;
@@ -322,29 +321,29 @@ body {
 }
 
 .component-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px;
-  box-shadow: 0 10px 30px -20px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 10px 30px -20px rgba(15, 23, 42, 0.15);
   cursor: grab;
   position: absolute;
   min-width: 180px;
 }
 .component-card[aria-pressed="true"] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35), 0 10px 30px -18px rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2), 0 10px 30px -18px rgba(9, 105, 218, 0.2);
 }
 
 .component-title {
   font-weight: 700;
   margin-bottom: 4px;
-  color: white;
+  color: var(--text);
 }
 
 .component-body {
   font-size: 12px;
-  color: #d7e0f5;
+  color: var(--text);
 }
 
 .drag-handle {
@@ -363,7 +362,7 @@ body {
 }
 
 .ghost {
-  background: rgba(255, 255, 255, 0.03);
+  background: #ffffff;
   border: 1px solid var(--border);
   padding: 6px 10px;
   border-radius: 8px;
