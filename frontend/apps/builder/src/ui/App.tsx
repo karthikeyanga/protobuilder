@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import type { AppConfig } from '@protobuilder/schema';
 import { mockAppConfig, mockPages, mockConnectors } from '../mocks/mock-app';
+import { ApplicationsPage } from '../pages/ApplicationsPage';
+import { ChecklistPage } from '../pages/ChecklistPage';
+import { EntitiesPage } from '../pages/EntitiesPage';
+import { ConnectorsPage } from '../pages/ConnectorsPage';
+import { WorkflowsPage } from '../pages/WorkflowsPage';
+import { PagesPage } from '../pages/PagesPage';
+import { WidgetsPage } from '../pages/WidgetsPage';
+import { PermissionsPage } from '../pages/PermissionsPage';
+import { ThemePage } from '../pages/ThemePage';
+import { NavRail } from './NavRail';
 
 type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
 type MainTab = 'design' | 'code';
 type RightTab = 'properties' | 'ai';
-type Mode = 'builder' | 'applications' | 'checklist';
 
 const controlIcon: Record<string, string> = {
   Text: '📝',
@@ -292,14 +302,25 @@ export function App() {
     }
   };
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+  const currentAppId = params.appId ?? selectedApp;
+  const isEditor = location.pathname.includes('/editor');
+
+  const handleSelectApp = (id: string, name: string) => {
+    setSelectedApp(id === 'new' ? 'untitled-app' : id);
+    navigate(id === 'new' ? `/apps/untitled-app/checklist` : `/apps/${id}/editor`);
+  };
+
   return (
     <div className="layout">
       <header className="topbar">
-        <div className="logo">ProtoBuilder — {mode === 'builder' ? 'Builder' : mode === 'applications' ? 'Applications' : 'Checklist'}</div>
+        <div className="logo">ProtoBuilder</div>
         <div className="menu-actions">
-          <button type="button" onClick={() => setMode('applications')}>Applications</button>
-          <button type="button" onClick={() => setMode('builder')}>Builder</button>
-          <button type="button" onClick={() => setMode('checklist')}>Checklist</button>
+          <button type="button" onClick={() => navigate('/apps')}>Applications</button>
+          <button type="button" onClick={() => currentAppId && navigate(`/apps/${currentAppId}/editor`)} disabled={!currentAppId}>Builder</button>
+          <button type="button" onClick={() => currentAppId && navigate(`/apps/${currentAppId}/checklist`)} disabled={!currentAppId}>Checklist</button>
           <button type="button">New App</button>
           <button type="button">Load App</button>
           <button type="button">Save App</button>
@@ -315,346 +336,335 @@ export function App() {
       <div
         className="main"
         style={{
-          gridTemplateColumns: `${navWidth}px ${leftCollapsed ? '0px' : `${leftWidth}px`} 1fr ${rightCollapsed ? '0px' : `${rightWidth}px`}`
+          gridTemplateColumns: `${navWidth}px ${isEditor ? (leftCollapsed ? '0px' : `${leftWidth}px`) : '0px'} 1fr ${isEditor ? (rightCollapsed ? '0px' : `${rightWidth}px`) : '0px'}`
         }}
       >
-        <aside className="nav-rail">
-          <div className="nav-title">Navigation</div>
-          <button className={`nav-item ${mode === 'applications' ? 'active' : ''}`} onClick={() => setMode('applications')}>Applications</button>
-          <button className={`nav-item ${mode === 'builder' ? 'active' : ''}`} onClick={() => setMode('builder')}>Builder</button>
-          <button className="nav-item">Workflows</button>
-          <button className="nav-item">Users</button>
-          <button className="nav-item">Deployments</button>
-        </aside>
+        <NavRail selectedApp={currentAppId} />
 
-        <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`}>
-          <div className="left-tabs">
-            <button className={leftTab === 'toolbox' ? 'active' : ''} onClick={() => setLeftTab('toolbox')}>
-              Toolbox
-            </button>
-            <button className={leftTab === 'pages' ? 'active' : ''} onClick={() => setLeftTab('pages')}>
-              Pages
-            </button>
-            <button className={leftTab === 'workflows' ? 'active' : ''} onClick={() => setLeftTab('workflows')}>
-              Workflows
-            </button>
-            <button className={leftTab === 'data' ? 'active' : ''} onClick={() => setLeftTab('data')}>
-              Data
-            </button>
-            <button className="collapse" onClick={() => setLeftCollapsed((v) => !v)}>
-              {leftCollapsed ? '▶' : '◀'}
-            </button>
-          </div>
+        {isEditor && (
+          <aside className={`left-pane ${leftCollapsed ? 'collapsed' : ''}`}>
+            <div className="left-tabs">
+              <button className={leftTab === 'toolbox' ? 'active' : ''} onClick={() => setLeftTab('toolbox')}>
+                Toolbox
+              </button>
+              <button className={leftTab === 'pages' ? 'active' : ''} onClick={() => setLeftTab('pages')}>
+                Pages
+              </button>
+              <button className={leftTab === 'workflows' ? 'active' : ''} onClick={() => setLeftTab('workflows')}>
+                Workflows
+              </button>
+              <button className={leftTab === 'data' ? 'active' : ''} onClick={() => setLeftTab('data')}>
+                Data
+              </button>
+              <button className="collapse" onClick={() => setLeftCollapsed((v) => !v)}>
+                {leftCollapsed ? '▶' : '◀'}
+              </button>
+            </div>
 
-          {!leftCollapsed && (
-            <div className="left-content">
-              {leftTab === 'toolbox' && (
-                <>
-                  {paletteControls.map((group) => (
-                    <div key={group.group} className="group drawer">
-                      <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, [group.group]: !p[group.group] }))}>
-                        {group.group} <span className="chevron">{toolboxOpen[group.group] ? '▾' : '▸'}</span>
+            {!leftCollapsed && (
+              <div className="left-content">
+                {leftTab === 'toolbox' && (
+                  <>
+                    {paletteControls.map((group) => (
+                      <div key={group.group} className="group drawer">
+                        <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, [group.group]: !p[group.group] }))}>
+                          {group.group} <span className="chevron">{toolboxOpen[group.group] ? '▾' : '▸'}</span>
+                        </div>
+                        {toolboxOpen[group.group] && (
+                          <div className="tool-grid">
+                            {group.items.map((c) => (
+                              <button
+                                key={c}
+                                className="tool-btn"
+                                title={`${c} — ${controlDesc[c] ?? ''}`}
+                                aria-label={c}
+                                onClick={() => addControl(c)}
+                                draggable
+                                onDragStart={() => setDragPayload({ kind: 'control', name: c })}
+                              >
+                                <span className="icon">{controlIcon[c] ?? '🔧'}</span>
+                                <span className="sr-only">{c}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {toolboxOpen[group.group] && (
+                    ))}
+                    <div className="group drawer">
+                      <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Alignment & Layout': !p['Alignment & Layout'] }))}>
+                        Alignment & Layout <span className="chevron">{toolboxOpen['Alignment & Layout'] ? '▾' : '▸'}</span>
+                      </div>
+                      {toolboxOpen['Alignment & Layout'] && (
                         <div className="tool-grid">
-                          {group.items.map((c) => (
+                          <button className="tool-btn" title="2-column section" aria-label="2-column section" onClick={() => addLayout('Grid-2col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-2col' })}>
+                            <span className="icon">{controlIcon['Grid-2col']}</span>
+                            <span className="sr-only">2-col</span>
+                          </button>
+                          <button className="tool-btn" title="3-column section" aria-label="3-column section" onClick={() => addLayout('Grid-3col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-3col' })}>
+                            <span className="icon">{controlIcon['Grid-3col']}</span>
+                            <span className="sr-only">3-col</span>
+                          </button>
+                          <button className="tool-btn" title="Table layout" aria-label="Table layout" onClick={() => addLayout('TableLayout')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'TableLayout' })}>
+                            <span className="icon">{controlIcon['TableLayout']}</span>
+                            <span className="sr-only">Table</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="group drawer">
+                      <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Built-in Widgets': !p['Built-in Widgets'] }))}>
+                        Built-in Widgets <span className="chevron">{toolboxOpen['Built-in Widgets'] ? '▾' : '▸'}</span>
+                      </div>
+                      {toolboxOpen['Built-in Widgets'] && (
+                        <div className="tool-grid">
+                          {builtInWidgets.map((w) => (
                             <button
-                              key={c}
+                              key={w}
                               className="tool-btn"
-                            title={`${c} — ${controlDesc[c] ?? ''}`}
-                            aria-label={c}
-                              onClick={() => addControl(c)}
+                              title={`${w} — ${controlDesc[w] ?? ''}`}
+                              aria-label={w}
+                              onClick={() => addControl(w)}
                               draggable
-                              onDragStart={() => setDragPayload({ kind: 'control', name: c })}
+                              onDragStart={() => setDragPayload({ kind: 'control', name: w })}
                             >
-                            <span className="icon">{controlIcon[c] ?? '🔧'}</span>
-                            <span className="sr-only">{c}</span>
+                              <span className="icon">{controlIcon[w] ?? '✨'}</span>
+                              <span className="sr-only">{w}</span>
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
-                  ))}
-                  <div className="group drawer">
-                    <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Alignment & Layout': !p['Alignment & Layout'] }))}>
-                      Alignment & Layout <span className="chevron">{toolboxOpen['Alignment & Layout'] ? '▾' : '▸'}</span>
-                    </div>
-                    {toolboxOpen['Alignment & Layout'] && (
-                      <div className="tool-grid">
-                        <button className="tool-btn" title="2-column section" aria-label="2-column section" onClick={() => addLayout('Grid-2col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-2col' })}>
-                          <span className="icon">{controlIcon['Grid-2col']}</span>
-                          <span className="sr-only">2-col</span>
-                        </button>
-                        <button className="tool-btn" title="3-column section" aria-label="3-column section" onClick={() => addLayout('Grid-3col')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'Grid-3col' })}>
-                          <span className="icon">{controlIcon['Grid-3col']}</span>
-                          <span className="sr-only">3-col</span>
-                        </button>
-                        <button className="tool-btn" title="Table layout" aria-label="Table layout" onClick={() => addLayout('TableLayout')} draggable onDragStart={() => setDragPayload({ kind: 'layout', name: 'TableLayout' })}>
-                          <span className="icon">{controlIcon['TableLayout']}</span>
-                          <span className="sr-only">Table</span>
-                        </button>
-                      </div>
-                    )}
+                  </>
+                )}
+                {leftTab === 'pages' && (
+                  <div className="group">
+                    <div className="group-title">Pages</div>
+                    <ul>
+                      {mockPages.map((p) => (
+                        <li key={p.name}>{p.name}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="group drawer">
-                    <div className="group-title" onClick={() => setToolboxOpen((p) => ({ ...p, 'Built-in Widgets': !p['Built-in Widgets'] }))}>
-                      Built-in Widgets <span className="chevron">{toolboxOpen['Built-in Widgets'] ? '▾' : '▸'}</span>
-                    </div>
-                    {toolboxOpen['Built-in Widgets'] && (
-                      <div className="tool-grid">
-                        {builtInWidgets.map((w) => (
-                          <button
-                            key={w}
-                            className="tool-btn"
-                            title={`${w} — ${controlDesc[w] ?? ''}`}
-                            aria-label={w}
-                            onClick={() => addControl(w)}
-                            draggable
-                            onDragStart={() => setDragPayload({ kind: 'control', name: w })}
-                          >
-                            <span className="icon">{controlIcon[w] ?? '✨'}</span>
-                            <span className="sr-only">{w}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                )}
+                {leftTab === 'workflows' && (
+                  <div className="group">
+                    <div className="group-title">Workflows</div>
+                    <ul>
+                      <li>VehicleLookupFlow</li>
+                      <li>ClaimsReviewFlow</li>
+                      <li>Custom Task Nodes (placeholder)</li>
+                    </ul>
                   </div>
-                </>
-              )}
-              {leftTab === 'pages' && (
-                <div className="group">
-                  <div className="group-title">Pages</div>
-                  <ul>
-                    {mockPages.map((p) => (
-                      <li key={p.name}>{p.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {leftTab === 'workflows' && (
-                <div className="group">
-                  <div className="group-title">Workflows</div>
-                  <ul>
-                    <li>VehicleLookupFlow</li>
-                    <li>ClaimsReviewFlow</li>
-                    <li>Custom Task Nodes (placeholder)</li>
-                  </ul>
-                </div>
-              )}
-              {leftTab === 'data' && (
-                <div className="group">
-                  <div className="group-title">Connectors & Data</div>
-                  <ul>
-                    {mockConnectors.map((c) => (
-                      <li key={c.id}>{c.id}</li>
-                    ))}
-                    <li>DB Sources (placeholder)</li>
-                    <li>Storage Buckets (placeholder)</li>
-          </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
+                )}
+                {leftTab === 'data' && (
+                  <div className="group">
+                    <div className="group-title">Connectors & Data</div>
+                    <ul>
+                      {mockConnectors.map((c) => (
+                        <li key={c.id}>{c.id}</li>
+                      ))}
+                      <li>DB Sources (placeholder)</li>
+                      <li>Storage Buckets (placeholder)</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </aside>
+        )}
 
         <section className="center-pane">
-          <div className="tab-bar">
-            <div className="tabs">
-              <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
-                Design
-              </button>
-              <button className={mainTab === 'code' ? 'active' : ''} onClick={() => setMainTab('code')}>
-                Code
-              </button>
-            </div>
-            <div className="breadcrumbs">vehicle-ops / VehicleSearch</div>
-          </div>
-
-          <div className="canvas">
-            {mode === 'applications' ? (
-              <div className="apps-grid">
-                {apps.map((a) => (
-                  <div
-                    key={a.id}
-                    className={`app-card ${a.id === 'new' ? 'new' : ''}`}
-                    onClick={() => {
-                      setSelectedApp(a.id === 'new' ? 'Untitled App' : a.name);
-                      setMode(a.id === 'new' ? 'checklist' : 'builder');
-                    }}
-                  >
-                    {a.name}
-                  </div>
-                ))}
-              </div>
-            ) : mode === 'checklist' ? (
-              <div className="checklist-grid">
-                {checklist.map((item) => (
-                  <div key={item.id} className="check-card">
-                    <div className="check-title">{item.title}</div>
-                    <div className="check-desc">{item.desc}</div>
-                    <button className="ghost small">{item.action}</button>
-                  </div>
-                ))}
-              </div>
-            ) : mainTab === 'design' ? (
-              <div
-                className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
-                onDragOver={onCanvasDragOver}
-                onDragLeave={onCanvasDragLeave}
-                onDrop={onCanvasDrop}
-                ref={canvasRef}
-              >
-                <div className="canvas-toolbar">
-                  <p className="hint">Drag controls to the canvas; position them as desired.</p>
-                  <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
-                    {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
-                  </button>
-                </div>
-                <div className="chip-row">
-                  <span className="chip">App: {selectedApp ?? config.appId}</span>
-                  <span className="chip">Pages: {config.pages.length}</span>
-                  <span className="chip">Connectors: {config.connectors.length}</span>
-                </div>
-                <div className="stage-row">
-                  {stages.map((s) => (
-                    <span key={s} className="stage-chip">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-                <div className="component-surface">
-                  {components.length === 0 && <div className="empty">No components yet. Drag from the left.</div>}
-                  {components.map((c) => (
-                    <div
-                      key={c.id}
-                      className="component-card"
-                      style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
-                      draggable
-                      onDragStart={() => onDragStart(c.id)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        onDragOver(c.id);
-                      }}
-                      onDragEnd={onDragEnd}
-                      onClick={() => setSelectedId(c.id)}
-                      aria-pressed={selectedId === c.id}
-                    >
-                      <div className="component-title">
-                        <span className="drag-handle">≡</span> {c.widgetRef}
-                      </div>
-                      <div className="component-body">{renderControl(c)}</div>
+          <Routes>
+            <Route path="/apps" element={<ApplicationsPage onSelectApp={(id, name) => handleSelectApp(id, name)} />} />
+            <Route path="/apps/:appId/checklist" element={<ChecklistPage appName={currentAppId} />} />
+            <Route path="/apps/:appId/entities" element={<EntitiesPage />} />
+            <Route path="/apps/:appId/connectors" element={<ConnectorsPage />} />
+            <Route path="/apps/:appId/workflows" element={<WorkflowsPage />} />
+            <Route path="/apps/:appId/pages" element={<PagesPage />} />
+            <Route path="/apps/:appId/widgets" element={<WidgetsPage />} />
+            <Route path="/apps/:appId/permissions" element={<PermissionsPage />} />
+            <Route path="/apps/:appId/theme" element={<ThemePage />} />
+            <Route
+              path="/apps/:appId/editor"
+              element={
+                <div className="canvas">
+                  <div className="tab-bar">
+                    <div className="tabs">
+                      <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
+                        Design
+                      </button>
+                      <button className={mainTab === 'code' ? 'active' : ''} onClick={() => setMainTab('code')}>
+                        Code
+                      </button>
                     </div>
-                  ))}
+                    <div className="breadcrumbs">{currentAppId ?? 'Select an app'}</div>
+                  </div>
+
+                  {mainTab === 'design' ? (
+                    <div
+                      className={`canvas-inner ${dropHover ? 'drop-over' : ''}`}
+                      onDragOver={onCanvasDragOver}
+                      onDragLeave={onCanvasDragLeave}
+                      onDrop={onCanvasDrop}
+                      ref={canvasRef}
+                    >
+                      <div className="canvas-toolbar">
+                        <p className="hint">Drag controls to the canvas; position them as desired.</p>
+                        <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
+                          {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
+                        </button>
+                      </div>
+                      <div className="chip-row">
+                        <span className="chip">App: {currentAppId ?? config.appId}</span>
+                        <span className="chip">Pages: {config.pages.length}</span>
+                        <span className="chip">Connectors: {config.connectors.length}</span>
+                      </div>
+                      <div className="stage-row">
+                        {stages.map((s) => (
+                          <span key={s} className="stage-chip">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="component-surface">
+                        {components.length === 0 && <div className="empty">No components yet. Drag from the left.</div>}
+                        {components.map((c) => (
+                          <div
+                            key={c.id}
+                            className="component-card"
+                            style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
+                            draggable
+                            onDragStart={() => onDragStart(c.id)}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              onDragOver(c.id);
+                            }}
+                            onDragEnd={onDragEnd}
+                            onClick={() => setSelectedId(c.id)}
+                            aria-pressed={selectedId === c.id}
+                          >
+                            <div className="component-title">
+                              <span className="drag-handle">≡</span> {c.widgetRef}
+                            </div>
+                            <div className="component-body">{renderControl(c)}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="canvas-actions">
+                        <button type="button" className="ghost" onClick={removeLast} disabled={components.length === 0}>
+                          Remove last
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <pre className="code-view">{codePreview}</pre>
+                  )}
                 </div>
-                <div className="canvas-actions">
-                  <button type="button" className="ghost" onClick={removeLast} disabled={components.length === 0}>
-                    Remove last
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <pre className="code-view">{codePreview}</pre>
-            )}
-          </div>
+              }
+            />
+            <Route path="*" element={<Navigate to="/apps" />} />
+          </Routes>
         </section>
 
-        <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`} style={{ width: rightCollapsed ? 10 : rightWidth }}>
-          <div className="right-header">
-            <div className="right-tabs">
-              <button className={rightTab === 'properties' ? 'active' : ''} onClick={() => setRightTab('properties')}>
-                Properties
-              </button>
-              <button className={rightTab === 'ai' ? 'active' : ''} onClick={() => setRightTab('ai')}>
-                AI
+        {isEditor && (
+          <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`} style={{ width: rightCollapsed ? 10 : rightWidth }}>
+            <div className="right-header">
+              <div className="right-tabs">
+                <button className={rightTab === 'properties' ? 'active' : ''} onClick={() => setRightTab('properties')}>
+                  Properties
+                </button>
+                <button className={rightTab === 'ai' ? 'active' : ''} onClick={() => setRightTab('ai')}>
+                  AI
+                </button>
+              </div>
+              <button className="collapse" onClick={() => setRightCollapsed((v) => !v)}>
+                {rightCollapsed ? '◀' : '▶'}
               </button>
             </div>
-            <button className="collapse" onClick={() => setRightCollapsed((v) => !v)}>
-              {rightCollapsed ? '◀' : '▶'}
-            </button>
-          </div>
-          {!rightCollapsed && (
-            <div className="right-content">
-              {rightTab === 'properties' ? (
-                selectedComponent ? (
-                  <div className="props-panel">
-                    <div className="prop-field">
-                      <label>Label</label>
-                      <input
-                        value={String(selectedComponent.props?.label ?? '')}
-                        onChange={(e) => updateSelectedProp('label', e.target.value)}
-                      />
-                    </div>
-                    <div className="prop-field">
-                      <label>Placeholder</label>
-                      <input
-                        value={String(selectedComponent.props?.placeholder ?? '')}
-                        onChange={(e) => updateSelectedProp('placeholder', e.target.value)}
-                      />
-                    </div>
-                    <div className="prop-field">
-                      <label>Width</label>
-                      <input
-                        type="number"
-                        value={Number(selectedComponent.props?.width ?? 100)}
-                        onChange={(e) => updateSelectedProp('width', Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="prop-field">
-                      <label>
+            {!rightCollapsed && (
+              <div className="right-content">
+                {rightTab === 'properties' ? (
+                  selectedComponent ? (
+                    <div className="props-panel">
+                      <div className="prop-field">
+                        <label>Label</label>
                         <input
-                          type="checkbox"
-                          checked={Boolean(selectedComponent.props?.required)}
-                          onChange={(e) => updateSelectedProp('required', e.target.checked)}
-                        />{' '}
-                        Required
-                      </label>
+                          value={String(selectedComponent.props?.label ?? '')}
+                          onChange={(e) => updateSelectedProp('label', e.target.value)}
+                        />
+                      </div>
+                      <div className="prop-field">
+                        <label>Placeholder</label>
+                        <input
+                          value={String(selectedComponent.props?.placeholder ?? '')}
+                          onChange={(e) => updateSelectedProp('placeholder', e.target.value)}
+                        />
+                      </div>
+                      <div className="prop-field">
+                        <label>Width</label>
+                        <input
+                          type="number"
+                          value={Number(selectedComponent.props?.width ?? 100)}
+                          onChange={(e) => updateSelectedProp('width', Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="prop-field">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(selectedComponent.props?.required)}
+                            onChange={(e) => updateSelectedProp('required', e.target.checked)}
+                          />{' '}
+                          Required
+                        </label>
+                      </div>
+                      {selectedComponent.widgetRef === 'Autocomplete' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Suggestions API</label>
+                            <input
+                              value={String(selectedComponent.props?.suggestApi ?? '')}
+                              onChange={(e) => updateSelectedProp('suggestApi', e.target.value)}
+                            />
+                          </div>
+                          <div className="prop-field">
+                            <label>Static options (comma)</label>
+                            <input
+                              value={String(selectedComponent.props?.staticOptions ?? '')}
+                              onChange={(e) => updateSelectedProp('staticOptions', e.target.value)}
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {selectedComponent.widgetRef === 'Autocomplete' && (
-                      <>
-                        <div className="prop-field">
-                          <label>Suggestions API</label>
-                          <input
-                            value={String(selectedComponent.props?.suggestApi ?? '')}
-                            onChange={(e) => updateSelectedProp('suggestApi', e.target.value)}
-                          />
-                        </div>
-                        <div className="prop-field">
-                          <label>Static options (comma)</label>
-                          <input
-                            value={String(selectedComponent.props?.staticOptions ?? '')}
-                            onChange={(e) => updateSelectedProp('staticOptions', e.target.value)}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="muted">Select a component to edit properties.</div>
+                  )
                 ) : (
-                  <div className="muted">Select a component to edit properties.</div>
-                )
-              ) : (
-                <div className="ai-panel">
-                  <div className="ai-history">
-                    <div className="ai-bubble">Ask AI to build a Vehicle Search form.</div>
-                    <div className="ai-bubble secondary">"Add a workflow step for document review."</div>
+                  <div className="ai-panel">
+                    <div className="ai-history">
+                      <div className="ai-bubble">Ask AI to build a Vehicle Search form.</div>
+                      <div className="ai-bubble secondary">"Add a workflow step for document review."</div>
+                    </div>
+                    <div className="ai-input-row">
+                      <button className="ghost small">📎 Upload mock</button>
+                      <input className="ai-input" placeholder="Ask AI..." />
+                      <button className="ghost small">Send</button>
+                    </div>
                   </div>
-                  <div className="ai-input-row">
-                    <button className="ghost small">📎 Upload mock</button>
-                    <input className="ai-input" placeholder="Ask AI..." />
-                    <button className="ghost small">Send</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
-        {!leftCollapsed && (
+                )}
+              </div>
+            )}
+          </aside>
+        )}
+        {isEditor && !leftCollapsed && (
           <div
             className="resizer vertical"
             style={{ left: `${navWidth + leftWidth - 3}px` }}
             onMouseDown={() => setResizing({ side: 'left' })}
           />
         )}
-        {!rightCollapsed && (
+        {isEditor && !rightCollapsed && (
           <div
             className="resizer vertical right"
             style={{ right: `${rightWidth - 3}px` }}

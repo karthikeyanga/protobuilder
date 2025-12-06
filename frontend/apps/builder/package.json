@@ -12,11 +12,13 @@
   "dependencies": {
     "@protobuilder/schema": "0.0.1",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-router-dom": "6.26.2"
   },
   "devDependencies": {
     "@types/react": "18.2.74",
     "@types/react-dom": "18.2.24",
+    "@types/react-router-dom": "5.3.3",
     "@vitejs/plugin-react": "4.3.2",
     "typescript": "5.6.3",
     "vite": "5.3.4"
