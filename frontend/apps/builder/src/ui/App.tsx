@@ -467,9 +467,18 @@ export function App() {
           <div className="canvas">
             {mode === 'applications' ? (
               <div className="apps-grid">
-                <div className="app-card new">+ New Application</div>
-                <div className="app-card">Claims Ops</div>
-                <div className="app-card">Vehicle Search</div>
+                {apps.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`app-card ${a.id === 'new' ? 'new' : ''}`}
+                    onClick={() => {
+                      setSelectedApp(a.id === 'new' ? 'Untitled App' : a.name);
+                      setMode(a.id === 'new' ? 'checklist' : 'builder');
+                    }}
+                  >
+                    {a.name}
+                  </div>
+                ))}
               </div>
             ) : mode === 'checklist' ? (
               <div className="checklist-grid">
@@ -496,9 +505,16 @@ export function App() {
                   </button>
                 </div>
                 <div className="chip-row">
-                  <span className="chip">App: {config.appId}</span>
+                  <span className="chip">App: {selectedApp ?? config.appId}</span>
                   <span className="chip">Pages: {config.pages.length}</span>
                   <span className="chip">Connectors: {config.connectors.length}</span>
+                </div>
+                <div className="stage-row">
+                  {stages.map((s) => (
+                    <span key={s} className="stage-chip">
+                      {s}
+                    </span>
+                  ))}
                 </div>
                 <div className="component-surface">
                   {components.length === 0 && <div className="empty">No components yet. Drag from the left.</div>}
