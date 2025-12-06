@@ -1,0 +1,22 @@
+{
+  "name": "protobuilder",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "npm@10.8.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/builder",
+    "dev:runtime": "npm run dev -w apps/runtime",
+    "build": "npm run build -ws",
+    "lint": "npm run lint -ws",
+    "preview": "npm run preview -w apps/builder"
+  }
+}
+
+
