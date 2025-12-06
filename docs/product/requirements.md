@@ -1,4 +1,4 @@
-## ProtoBuilder v1 Requirements Specification
+## ProtoBuilder v1 - Product Requirements
 
 ### Overview
 ProtoBuilder is a service that enables product and business users to model entities, design UIs, define and operate workflows, and assemble complete applications with AI assistance. The service hosts both the builder and the resulting applications, supports export for independent enhancement, and integrates with an external Workbench for task operations.
@@ -37,7 +37,7 @@ ProtoBuilder is a service that enables product and business users to model entit
   - Immutable releases; rollback supported with audit trail.
 
 ### Domain Modeling (Entities)
-- Types: primitives (string, number, boolean, date/time), objects, arrays, maps; nested structures.
+- Types: primitives (string, number, boolean, date/time), objects, arrays, maps; nested structures and references (including list-of-entity).
 - Constraints: required, min/max (length/value), enums/allowedValues, regex, unique, defaults.
 - Derived fields (expressions); validation rules (sync/async); display hints (labels, masks, help text).
 - Versioning, migration notes, and reuse across apps.
@@ -61,7 +61,7 @@ ProtoBuilder is a service that enables product and business users to model entit
 - Runtime visibility: instance list, current stage, history, variables, timers, errors; correlation with app events.
 - User tasks:
   - Our service renders task UIs and executes state transitions.
-  - Assignment/queues/ownership are handled by the external Workbench (`/Users/karthikeyan.g/Workspace/Auto/claims/auto-claims-ops-tool`); integrate via APIs.
+  - Assignment/queues/ownership are handled by the external Workbench; integrate via APIs.
 
 ### AI (Builder & Runtime)
 - Builder AI agent:
@@ -90,20 +90,12 @@ ProtoBuilder is a service that enables product and business users to model entit
   - Typed APIs for state, events, connectors, workflows, AI tools.
   - Local dev with hot reload; publishing to org registry/marketplace.
 
-### Hosting & Export (Backend Library, Config-Driven)
-- Backend runtime is a shared library (part of the service) that powers all apps.
-- Apps are defined by configuration only (no per-app backend generation).
+### Hosting & Export (Behavioral)
 - Hosted mode: the service loads app configs from the metastore and serves them.
 - Export options:
   - Frontend: React pages matching the built UI.
-  - Backend: thin Java bootstrap (or official runtime container image) that depends on the shared runtime library and loads the provided config bundle.
-  - Optional plugin JARs for custom actions/validators/connectors (whitelisted per app).
-- Config covers: entities, routes/endpoints exposure, connectors/auth, workflows/signals, permissions, AI tools, secrets references, environment overlays, themes.
-- Acceptance for backend library:
-  - Multiple apps run by the same runtime with only config swaps.
-  - Exported apps run with the same library + config; no generated controllers needed.
-  - Custom action via plugin JAR is isolated to the app that declares it.
-  - Endpoint exposure (public/protected) enforced by config at runtime.
+  - Backend: uses shared runtime library with thin bootstrap or official container; config-only apps; optional plugin JARs.
+- Endpoint exposure (public/protected) is config-driven per environment.
 
 ### Workbench Integration (Ops Users)
 - Our app renders task UIs and transitions; assignment/queues remain in Workbench.
@@ -142,12 +134,5 @@ ProtoBuilder is a service that enables product and business users to model entit
 - Complex real-time collaborative editing (basic locking or last-writer-wins only).
 - Full IAM/SSO provider built-in (can integrate with external IdP later).
 - Non-web client generation (native/mobile).
-
-### Open Points (For Later Decision)
-- Preferred Java stack for the backend runtime library (e.g., Spring Boot vs Quarkus).
-- Config format and layering (YAML/JSON + environment overlays).
-- Plugin policy and sandboxing requirements.
-- Vector store/provider options and AI gateways/data residency constraints.
-- Re-import fidelity for exported projects (desirable, not mandatory in v1).
 
 
