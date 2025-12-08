@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { createEntity, listEntities, updateEntity, type EntityConfig, type EntityField } from '../services/entityService';
+import { createEntity, listEntities, updateEntity, deleteEntity, type EntityConfig, type EntityField } from '../services/entityService';
 import { JsonEditor } from 'jsoneditor-react';
 import 'jsoneditor/dist/jsoneditor.css';
 
@@ -11,6 +11,7 @@ const blankField = (): FieldDraft => ({
   name: '',
   kind: 'primitive',
   type: 'string',
+  ref: '',
   constraints: { required: false },
   display: {}
 });
@@ -25,7 +26,8 @@ export function EntitiesPage() {
   const [draft, setDraft] = useState<EntityConfig>({ name: '', version: '0.0.1', fields: [] });
   const [fieldDraft, setFieldDraft] = useState<FieldDraft>(blankField());
   const [editorMode, setEditorMode] = useState<'ui' | 'json'>('ui');
-  const selected = useMemo(() => entities.find((e) => e.id === selectedId) ?? entities[0], [entities, selectedId]);
+  const selected = useMemo(() => entities.find((e) => e.id === selectedId), [entities, selectedId]);
+  const entityNames = useMemo(() => entities.map((e) => e.config.name).filter(Boolean), [entities]);
 
   useEffect(() => {
     if (!appId) return;
@@ -46,8 +48,12 @@ export function EntitiesPage() {
   }, [appId]);
 
   useEffect(() => {
-    if (selected) setDraft(selected.config);
-  }, [selected]);
+    if (selected) {
+      setDraft(selected.config);
+    } else if (entities.length === 0) {
+      setDraft({ name: '', version: '0.0.1', fields: [] });
+    }
+  }, [selected, entities.length]);
 
   const addField = () => {
     if (!fieldDraft.name.trim()) return;
@@ -105,7 +111,7 @@ export function EntitiesPage() {
   return (
     <div className="panel entity-panel">
       <div className="panel-header">
-      <h3>Entities</h3>
+        <h3>Entities</h3>
         <div className="inline-form">
           <button className="ghost small" onClick={newEntity}>+ New Entity</button>
           <button className="ghost small" onClick={saveDraftLocal} disabled={!draft.name.trim()}>Save Draft (local)</button>
@@ -129,13 +135,41 @@ export function EntitiesPage() {
               <div
                 key={e.id}
                 className={`list-row ${e.id === selectedId ? 'active' : ''}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedId(e.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setSelectedId(e.id);
+                  }
+                }}
               >
                 <div>
                   <div className="title">{e.config.name}</div>
                   <div className="muted">v{e.config.version}</div>
                   <div className="muted small">{e.config.fields.length} fields</div>
                 </div>
+                <button
+                  className="ghost small"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    if (!window.confirm('Delete this entity?')) return;
+                    deleteEntity(appId, e.id)
+                      .then(() => {
+                        setEntities((prev) => {
+                          const next = prev.filter((en) => en.id !== e.id);
+                          const nextSelected = next[0]?.id;
+                          setSelectedId((sid) => (sid === e.id ? nextSelected : sid));
+                          return next;
+                        });
+                        setStatusMsg?.('Deleted entity'); // optional external setter
+                      })
+                      .catch(() => setError('Delete failed'));
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             ))}
           </div>
@@ -176,7 +210,17 @@ export function EntitiesPage() {
                     )}
                     {fieldDraft.kind === 'reference' && (
                       <>
-                        <input placeholder="Ref entity" value={fieldDraft.ref ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, ref: e.target.value }))} />
+                        <select
+                          value={fieldDraft.ref ?? ''}
+                          onChange={(e) => setFieldDraft((f) => ({ ...f, ref: e.target.value }))}
+                        >
+                          <option value="">Select entity</option>
+                          {entityNames.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
                         <select value={fieldDraft.cardinality ?? 'one'} onChange={(e) => setFieldDraft((f) => ({ ...f, cardinality: e.target.value as 'one' | 'many' }))}>
                           <option value="one">one</option>
                           <option value="many">many</option>
@@ -184,7 +228,17 @@ export function EntitiesPage() {
                       </>
                     )}
                     {fieldDraft.kind === 'list' && (
-                      <input placeholder="Item type/ref" value={fieldDraft.type ?? ''} onChange={(e) => setFieldDraft((f) => ({ ...f, type: e.target.value }))} />
+                      <select
+                        value={fieldDraft.ref ?? ''}
+                        onChange={(e) => setFieldDraft((f) => ({ ...f, ref: e.target.value }))}
+                      >
+                        <option value="">Select item entity</option>
+                        {entityNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
                     )}
                     <label className="checkbox-inline">
                       <input

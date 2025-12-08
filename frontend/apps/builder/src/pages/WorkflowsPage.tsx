@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { createWorkflow, listWorkflows, updateWorkflow, type WorkflowConfig } from '../services/workflowService';
+import { createWorkflow, listWorkflows, updateWorkflow, deleteWorkflow, type WorkflowConfig } from '../services/workflowService';
 
 type WorkflowRow = { id?: string; config: WorkflowConfig };
 type WorkflowsPageProps = { global?: boolean };
@@ -72,6 +72,21 @@ export function WorkflowsPage({ global }: WorkflowsPageProps) {
     setDraft(blankWorkflow());
   };
 
+  const removeSelected = async () => {
+    if (!appId || !selectedId) return;
+    if (!window.confirm('Delete this workflow?')) return;
+    try {
+      await deleteWorkflow(appId, selectedId);
+      setWorkflows((prev) => prev.filter((w) => w.id !== selectedId));
+      setSelectedId((prev) => {
+        const remaining = workflows.filter((w) => w.id !== prev);
+        return remaining[0]?.id;
+      });
+    } catch {
+      setError('Delete failed');
+    }
+  };
+
   if (!appId && !global) {
     return <div className="panel-placeholder error">No app selected.</div>;
   }
@@ -85,6 +100,9 @@ export function WorkflowsPage({ global }: WorkflowsPageProps) {
           <button className="ghost small" onClick={save} disabled={saving || !draft.name.trim()}>
             {saving ? 'Saving…' : 'Save'}
           </button>
+          <button className="ghost small danger" onClick={removeSelected} disabled={!selectedId}>
+            Delete
+          </button>
         </div>
       </div>
 
@@ -93,11 +111,24 @@ export function WorkflowsPage({ global }: WorkflowsPageProps) {
       ) : error ? (
         <div className="panel-placeholder error">{error}</div>
       ) : (
-        <div className="entity-grid">
-          <div className="entity-list">
+        <div className="entity-layout">
+          <div className="entity-list-pane">
+            <div className="pane-title">{global ? 'All workflows' : 'App workflows'}</div>
             {workflows.length === 0 && <div className="muted">No workflows yet.</div>}
             {workflows.map((w) => (
-              <div key={w.id} className={`list-row ${w.id === selectedId ? 'active' : ''}`} onClick={() => setSelectedId(w.id)}>
+              <div
+                key={w.id}
+                className={`list-row ${w.id === selectedId ? 'active' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedId(w.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setSelectedId(w.id);
+                  }
+                }}
+              >
                 <div>
                   <div className="title">{w.config.name}</div>
                   <div className="muted small">v{w.config.version}</div>
@@ -107,18 +138,29 @@ export function WorkflowsPage({ global }: WorkflowsPageProps) {
             ))}
           </div>
 
-          <div className="entity-editor">
-            <div className="inline-form">
-              <input placeholder="Name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-              <input placeholder="Version" value={draft.version} onChange={(e) => setDraft((d) => ({ ...d, version: e.target.value }))} />
-              <input placeholder="Page ref" value={draft.pageRef ?? ''} onChange={(e) => setDraft((d) => ({ ...d, pageRef: e.target.value }))} />
+          <div className="entity-editor-pane">
+            <div className="editor-tabs">
+              <button className="active">Details</button>
             </div>
-            <textarea
-              placeholder="Description"
-              value={draft.description ?? ''}
-              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-              rows={3}
-            />
+            <div className="field-editor">
+              <div className="field-row">
+                <input placeholder="Workflow name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+                <input placeholder="Version" value={draft.version} onChange={(e) => setDraft((d) => ({ ...d, version: e.target.value }))} />
+                <input placeholder="Page ref" value={draft.pageRef ?? ''} onChange={(e) => setDraft((d) => ({ ...d, pageRef: e.target.value }))} />
+              </div>
+              <textarea
+                className="textarea"
+                placeholder="Description"
+                value={draft.description ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                rows={4}
+              />
+              <div className="pill-row">
+                <span className="pill">BPMN/DMN ready</span>
+                <span className="pill">User tasks</span>
+                <span className="pill">API triggers</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
