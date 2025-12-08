@@ -20,12 +20,7 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
   }, []);
 
   const handleSelect = (a: AppSummary) => {
-    const appName = a.id === 'new' ? 'Untitled App' : a.name;
-    if (a.id === 'new') {
-      navigate('/apps/new');
-      return;
-    }
-    onSelectApp(a.id, appName);
+    onSelectApp(a.id, a.name);
     navigate(`/apps/${a.id}/editor`);
   };
 
@@ -57,23 +52,26 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
           <h2>Applications</h2>
           <p className="muted">Create, open, and manage what you build in ProtoBuilder.</p>
         </div>
-        <button className="primary" onClick={() => handleSelect({ id: 'new', name: '+ New Application' })}>
+        <button className="primary" onClick={() => navigate('/apps/new')}>
           + New Application
         </button>
       </div>
       <div className="apps-grid">
+        <div className="app-card new" onClick={() => navigate('/apps/new')}>
+          <div className="app-card-header">
+            <span className="app-name">+ New Application</span>
+          </div>
+          <p className="muted small">Start with name, description, theme, connectors</p>
+        </div>
         {apps.map((a) => (
-          <div key={a.id} className={`app-card ${a.id === 'new' ? 'new' : ''}`} onClick={() => handleSelect(a)}>
+          <div key={a.id} className="app-card" onClick={() => handleSelect(a)}>
             <div className="app-card-header">
               <span className="app-name">{a.name}</span>
-              {a.id !== 'new' && (
-                <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
-                  ×
-                </button>
-              )}
+              <button className="icon-btn danger" aria-label="Delete app" onClick={(e) => handleDelete(a.id, e)}>
+                ×
+              </button>
             </div>
-            {a.id !== 'new' && <p className="muted small">Click to open in the builder</p>}
-            {a.id === 'new' && <p className="muted small">Start with name, description, theme, connectors</p>}
+            <p className="muted small">Click to open in the builder</p>
           </div>
         ))}
       </div>

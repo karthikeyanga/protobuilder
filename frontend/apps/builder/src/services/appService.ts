@@ -8,7 +8,7 @@ type AppDto = {
   config?: string | null;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:8080';
 
 const defaultConfig = (id: string): AppConfig => ({
   appId: id,
@@ -32,9 +32,9 @@ export async function fetchApps(): Promise<AppSummary[]> {
   const res = await fetch(`${API_BASE}/api/apps`);
   const data = await handle<AppDto[]>(res);
   if (!Array.isArray(data) || data.length === 0) {
-    return [{ id: 'new', name: '+ New Application' }];
+    return [];
   }
-  return [{ id: 'new', name: '+ New Application' }, ...data.map((d) => ({ id: d.id, name: d.name }))];
+  return data.map((d) => ({ id: d.id, name: d.name }));
 }
 
 export async function fetchAppDetail(id: string): Promise<AppConfig | null> {

@@ -5,6 +5,9 @@ type NavRailProps = {
 };
 
 export function NavRail({ selectedApp }: NavRailProps) {
+  const workflowsPath = selectedApp ? `/apps/${selectedApp}/workflows` : '/workflows';
+  const usersPath = '/users';
+  const deploymentsPath = '/deployments';
   return (
     <aside className="nav-rail">
       <div className="nav-title">Navigation</div>
@@ -18,13 +21,13 @@ export function NavRail({ selectedApp }: NavRailProps) {
       >
         🛠
       </NavLink>
-      <NavLink title="Workflows" className="nav-item icon" to="/workflows">
+      <NavLink title="Workflows" className={({ isActive }) => `nav-item icon ${isActive ? 'active' : ''}`} to={workflowsPath}>
         🔀
       </NavLink>
-      <NavLink title="Users" className="nav-item icon" to="/users">
+      <NavLink title="Users" className={({ isActive }) => `nav-item icon ${isActive ? 'active' : ''}`} to={usersPath}>
         👥
       </NavLink>
-      <NavLink title="Deployments" className="nav-item icon" to="/deployments">
+      <NavLink title="Deployments" className={({ isActive }) => `nav-item icon ${isActive ? 'active' : ''}`} to={deploymentsPath}>
         ☁️
       </NavLink>
     </aside>

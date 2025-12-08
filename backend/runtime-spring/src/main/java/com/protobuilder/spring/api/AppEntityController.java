@@ -26,25 +26,31 @@ public class AppEntityController {
   }
 
   @GetMapping
-  public List<AppEntityDto> list(@PathVariable UUID appId) {
-    return service.list(appId);
+  public List<AppEntityDto> list(@PathVariable("appId") String appId) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    return service.list(uuid);
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<AppEntityDto> get(@PathVariable UUID appId, @PathVariable UUID id) {
-    AppEntityDto dto = service.get(appId, id);
+  public ResponseEntity<AppEntityDto> get(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppEntityDto dto = service.get(appUuid, uuid);
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
   @PostMapping
-  public ResponseEntity<AppEntityDto> create(@PathVariable UUID appId, @Valid @RequestBody CreateEntityRequest req) {
-    AppEntityDto dto = service.create(appId, req.name(), req.version(), req.config());
+  public ResponseEntity<AppEntityDto> create(@PathVariable("appId") String appId, @Valid @RequestBody CreateEntityRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    AppEntityDto dto = service.create(appUuid, req.name(), req.version(), req.config());
     return ResponseEntity.ok(dto);
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<AppEntityDto> update(@PathVariable UUID appId, @PathVariable UUID id, @Valid @RequestBody UpdateEntityRequest req) {
-    AppEntityDto dto = service.update(appId, id, req.name(), req.version(), req.config());
+  public ResponseEntity<AppEntityDto> update(@PathVariable("appId") String appId, @PathVariable("id") String id, @Valid @RequestBody UpdateEntityRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppEntityDto dto = service.update(appUuid, uuid, req.name(), req.version(), req.config());
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 

@@ -110,6 +110,10 @@ export function App() {
   const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [aiMessages, setAiMessages] = useState<Array<{ from: 'user' | 'ai'; text: string }>>([
+    { from: 'ai', text: 'Need help? Ask me to scaffold entities, pages, or bindings.' }
+  ]);
+  const [aiInput, setAiInput] = useState('');
   const [loadingApp, setLoadingApp] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toolboxOpen, setToolboxOpen] = useState<Record<string, boolean>>({
@@ -496,7 +500,13 @@ export function App() {
       <div
         className="main"
         style={{
-          gridTemplateColumns: `${navWidth}px ${isEditor ? (leftCollapsed ? '0px' : `${leftWidth}px`) : '0px'} 1fr ${isEditor ? (rightCollapsed ? '0px' : `${rightWidth}px`) : '0px'}`
+          gridTemplateColumns: isEditor
+            ? rightCollapsed
+              ? `${navWidth}px ${leftCollapsed ? '0px' : `${leftWidth}px`} 1fr`
+              : `${navWidth}px ${leftCollapsed ? '0px' : `${leftWidth}px`} 1fr ${rightWidth}px`
+            : rightCollapsed
+              ? `${navWidth}px 1fr`
+              : `${navWidth}px 1fr ${rightWidth}px`
         }}
       >
         <NavRail selectedApp={currentAppId} />
@@ -667,7 +677,7 @@ export function App() {
           <Routes>
             <Route path="/apps/new" element={<NewAppPage onCreated={handleAppCreated} />} />
             <Route path="/apps" element={<ApplicationsPage onSelectApp={(id, name) => handleSelectApp(id, name)} />} />
-            <Route path="/apps/:appId/checklist" element={<ChecklistPage appName={currentAppId} />} />
+            <Route path="/apps/:appId/checklist" element={<ChecklistPage appName={selectedAppName || currentAppId} />} />
             <Route path="/apps/:appId/entities" element={<EntitiesPage />} />
             <Route path="/apps/:appId/connectors" element={<ConnectorsPage />} />
             <Route path="/apps/:appId/workflows" element={<WorkflowsPage />} />
@@ -785,24 +795,24 @@ export function App() {
           </Routes>
         </section>
 
-        {isEditor && (
-          <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`} style={{ width: rightCollapsed ? 10 : rightWidth }}>
-            <div className="right-header">
-              <div className="right-tabs">
-                <button className={rightTab === 'properties' ? 'active' : ''} onClick={() => setRightTab('properties')}>
-                  Properties
-                </button>
-                <button className={rightTab === 'ai' ? 'active' : ''} onClick={() => setRightTab('ai')}>
-                  AI
-                </button>
-              </div>
-              <button className="collapse" onClick={() => setRightCollapsed((v) => !v)}>
-                {rightCollapsed ? '◀' : '▶'}
+        <aside className={`right-pane ${rightCollapsed ? 'collapsed' : ''}`} style={{ width: rightCollapsed ? 0 : rightWidth }}>
+          <div className="right-header">
+            <div className="right-tabs">
+              <button className={rightTab === 'properties' ? 'active' : ''} onClick={() => setRightTab('properties')}>
+                Properties
+              </button>
+              <button className={rightTab === 'ai' ? 'active' : ''} onClick={() => setRightTab('ai')}>
+                AI
               </button>
             </div>
-            {!rightCollapsed && (
-              <div className="right-content">
-                {rightTab === 'properties' ? (
+            <button className="collapse" onClick={() => setRightCollapsed((v) => !v)}>
+              {rightCollapsed ? '◀' : '▶'}
+            </button>
+          </div>
+          {!rightCollapsed && (
+            <div className="right-content">
+              {rightTab === 'properties' ? (
+                isEditor ? (
                   selectedComponent ? (
                     <div className="props-panel">
                       <div className="prop-field">
@@ -884,22 +894,49 @@ export function App() {
                     <div className="muted">Select a component, workflow, or connector to see details.</div>
                   )
                 ) : (
-                  <div className="ai-panel">
-                    <div className="ai-history">
-                      <div className="ai-bubble secondary">AI assist coming soon</div>
-                    </div>
-                    <div className="ai-input-row">
-                      <input className="ai-input" placeholder="Not yet enabled" disabled />
-                      <button className="ghost small" disabled>
-                        Send
-                      </button>
-                    </div>
+                  <div className="muted">Properties available in the Builder editor.</div>
+                )
+              ) : (
+                <div className="ai-panel">
+                  <div className="ai-history">
+                    {aiMessages.map((m, idx) => (
+                      <div key={idx} className={`ai-bubble ${m.from === 'ai' ? 'secondary' : ''}`}>
+                        {m.text}
+                      </div>
+                    ))}
                   </div>
-                )}
-          </div>
-            )}
+                  <div className="ai-input-row">
+                    <input
+                      className="ai-input"
+                      placeholder="Ask AI to scaffold an entity or page..."
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && aiInput.trim()) {
+                          const prompt = aiInput.trim();
+                          setAiMessages((prev) => [...prev, { from: 'user', text: prompt }, { from: 'ai', text: 'AI reply coming soon (mock).' }]);
+                          setAiInput('');
+                        }
+                      }}
+                    />
+                    <button
+                      className="ghost small"
+                      onClick={() => {
+                        if (!aiInput.trim()) return;
+                        const prompt = aiInput.trim();
+                        setAiMessages((prev) => [...prev, { from: 'user', text: prompt }, { from: 'ai', text: 'AI reply coming soon (mock).' }]);
+                        setAiInput('');
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
-        )}
+
         {isEditor && !leftCollapsed && (
           <div
             className="resizer vertical"
@@ -907,7 +944,7 @@ export function App() {
             onMouseDown={() => setResizing({ side: 'left' })}
           />
         )}
-        {isEditor && !rightCollapsed && (
+        {!rightCollapsed && (
           <div
             className="resizer vertical right"
             style={{ right: `${rightWidth - 3}px` }}

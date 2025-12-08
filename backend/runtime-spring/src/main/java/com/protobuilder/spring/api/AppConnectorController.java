@@ -26,25 +26,31 @@ public class AppConnectorController {
   }
 
   @GetMapping
-  public List<AppConnectorDto> list(@PathVariable UUID appId) {
-    return service.list(appId);
+  public List<AppConnectorDto> list(@PathVariable("appId") String appId) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    return service.list(uuid);
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<AppConnectorDto> get(@PathVariable UUID appId, @PathVariable UUID id) {
-    AppConnectorDto dto = service.get(appId, id);
+  public ResponseEntity<AppConnectorDto> get(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppConnectorDto dto = service.get(appUuid, uuid);
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
   @PostMapping
-  public ResponseEntity<AppConnectorDto> create(@PathVariable UUID appId, @Valid @RequestBody CreateConnectorRequest req) {
-    AppConnectorDto dto = service.create(appId, req.name(), req.version(), req.config());
+  public ResponseEntity<AppConnectorDto> create(@PathVariable("appId") String appId, @Valid @RequestBody CreateConnectorRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    AppConnectorDto dto = service.create(appUuid, req.name(), req.version(), req.config());
     return ResponseEntity.ok(dto);
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<AppConnectorDto> update(@PathVariable UUID appId, @PathVariable UUID id, @Valid @RequestBody UpdateConnectorRequest req) {
-    AppConnectorDto dto = service.update(appId, id, req.name(), req.version(), req.config());
+  public ResponseEntity<AppConnectorDto> update(@PathVariable("appId") String appId, @PathVariable("id") String id, @Valid @RequestBody UpdateConnectorRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppConnectorDto dto = service.update(appUuid, uuid, req.name(), req.version(), req.config());
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 

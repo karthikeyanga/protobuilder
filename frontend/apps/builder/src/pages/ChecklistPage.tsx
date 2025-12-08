@@ -11,18 +11,59 @@ const defaultChecklist: ChecklistItem[] = [
   { id: 'release', title: 'Test & Release', desc: 'Mocks, approvals, deploy/export.', action: 'Release' }
 ];
 
+import { useNavigate, useParams } from 'react-router-dom';
+
 type ChecklistPageProps = {
   appName: string | null;
 };
 
 export function ChecklistPage({ appName }: ChecklistPageProps) {
+  const navigate = useNavigate();
+  const params = useParams();
+  const appId = params.appId ?? 'untitled-app';
+  const appLabel = appName || params.appId || 'this app';
+
+  const goTo = (id: string) => {
+    switch (id) {
+      case 'entities':
+        navigate(`/apps/${appId}/entities`);
+        break;
+      case 'connectors':
+        navigate(`/apps/${appId}/connectors`);
+        break;
+      case 'workflows':
+        navigate(`/apps/${appId}/workflows`);
+        break;
+      case 'pages':
+        navigate(`/apps/${appId}/pages`);
+        break;
+      case 'widgets':
+        navigate(`/apps/${appId}/widgets`);
+        break;
+      case 'permissions':
+        navigate(`/apps/${appId}/permissions`);
+        break;
+      case 'theme':
+        navigate(`/apps/${appId}/theme`);
+        break;
+      case 'release':
+        navigate(`/apps/${appId}/editor`);
+        break;
+      default:
+        navigate(`/apps/${appId}/editor`);
+    }
+  };
+
   return (
     <div className="checklist-grid">
       {defaultChecklist.map((item) => (
         <div key={item.id} className="check-card">
           <div className="check-title">{item.title}</div>
           <div className="check-desc">{item.desc}</div>
-          <button className="ghost small">{item.action}{appName ? ` for ${appName}` : ''}</button>
+          <button className="ghost small" onClick={() => goTo(item.id)}>
+            {item.action}
+            {` for ${appLabel}`}
+          </button>
         </div>
       ))}
     </div>

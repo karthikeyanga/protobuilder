@@ -26,25 +26,31 @@ public class AppWorkflowController {
   }
 
   @GetMapping
-  public List<AppWorkflowDto> list(@PathVariable UUID appId) {
-    return service.list(appId);
+  public List<AppWorkflowDto> list(@PathVariable("appId") String appId) {
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    return service.list(uuid);
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<AppWorkflowDto> get(@PathVariable UUID appId, @PathVariable UUID id) {
-    AppWorkflowDto dto = service.get(appId, id);
+  public ResponseEntity<AppWorkflowDto> get(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppWorkflowDto dto = service.get(appUuid, uuid);
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
   @PostMapping
-  public ResponseEntity<AppWorkflowDto> create(@PathVariable UUID appId, @Valid @RequestBody CreateWorkflowRequest req) {
-    AppWorkflowDto dto = service.create(appId, req.name(), req.version(), req.config());
+  public ResponseEntity<AppWorkflowDto> create(@PathVariable("appId") String appId, @Valid @RequestBody CreateWorkflowRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    AppWorkflowDto dto = service.create(appUuid, req.name(), req.version(), req.config());
     return ResponseEntity.ok(dto);
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<AppWorkflowDto> update(@PathVariable UUID appId, @PathVariable UUID id, @Valid @RequestBody UpdateWorkflowRequest req) {
-    AppWorkflowDto dto = service.update(appId, id, req.name(), req.version(), req.config());
+  public ResponseEntity<AppWorkflowDto> update(@PathVariable("appId") String appId, @PathVariable("id") String id, @Valid @RequestBody UpdateWorkflowRequest req) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppWorkflowDto dto = service.update(appUuid, uuid, req.name(), req.version(), req.config());
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
