@@ -16,11 +16,12 @@ import { UsersPage } from '../pages/UsersPage';
 import { DeploymentsPage } from '../pages/DeploymentsPage';
 import { NavRail } from './NavRail';
 import { fetchAppDetail, updateApp, deleteApp } from '../services/appService';
-import { listConnectors } from '../services/connectorService';
-import { listWorkflows } from '../services/workflowService';
+import { listConnectors, testConnector, type ConnectorTestResponse } from '../services/connectorService';
+import { listWorkflows, executeWorkflow, createWorkflow, deleteWorkflow, type WorkflowExecuteResponse } from '../services/workflowService';
+import { askAiGenerate, type AiSuggestion } from '../services/aiService';
 
-type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data';
-type MainTab = 'design' | 'code';
+type LeftTab = 'toolbox' | 'pages' | 'workflows' | 'data' | 'templates';
+type MainTab = 'design' | 'code' | 'preview';
 type RightTab = 'properties' | 'ai';
 type ComponentsByPage = Record<string, any[]>;
 const LOCAL_KEY = (appId: string, page: string) => `pb:${appId}:page:${page}`;
@@ -84,6 +85,54 @@ const builtInWidgets = [
   'DateRangePicker'
 ];
 
+const templates = [
+  {
+    id: 'crud-form',
+    title: 'CRUD Form',
+    desc: 'Create or edit a record with validations',
+    components: [
+      { id: 'Row-1', widgetRef: 'Grid-2col', props: { columns: 2, colSpan: 12, rowSpan: 1 } },
+      { id: 'Field-Name', widgetRef: 'Text', props: { label: 'Name', placeholder: 'Enter name', colSpan: 6, required: true } },
+      { id: 'Field-Email', widgetRef: 'Text', props: { label: 'Email', placeholder: 'name@example.com', colSpan: 6, required: true } },
+      { id: 'Field-Status', widgetRef: 'Select', props: { label: 'Status', colSpan: 4, placeholder: 'Pick status', staticOptions: 'New,In Progress,Done' } },
+      { id: 'Field-Notes', widgetRef: 'TextArea', props: { label: 'Notes', placeholder: 'Optional notes', colSpan: 8 } },
+      { id: 'Row-2', widgetRef: 'Grid-3col', props: { columns: 3, colSpan: 12, rowSpan: 1 } },
+      { id: 'Btn-Save', widgetRef: 'Button', props: { label: 'Save', colSpan: 3, variant: 'strong', tone: 'primary' } },
+      { id: 'Btn-Reset', widgetRef: 'Button', props: { label: 'Reset', colSpan: 3, variant: 'subtle', tone: 'neutral' } },
+      { id: 'Btn-Delete', widgetRef: 'Button', props: { label: 'Delete', colSpan: 3, variant: 'subtle', tone: 'danger' } }
+    ]
+  },
+  {
+    id: 'list-detail',
+    title: 'List + Detail',
+    desc: 'Master-detail with filter/search',
+    components: [
+      { id: 'Row-List', widgetRef: 'Grid-2col', props: { columns: 2, colSpan: 12, rowSpan: 1 } },
+      { id: 'Filter-Search', widgetRef: 'Text', props: { label: 'Search', placeholder: 'Search records', colSpan: 6 } },
+      { id: 'Filter-Status', widgetRef: 'Select', props: { label: 'Status', colSpan: 6, placeholder: 'All statuses', staticOptions: 'All,Open,Closed' } },
+      { id: 'Table-List', widgetRef: 'Table', props: { label: 'Records', colSpan: 6 } },
+      { id: 'Detail-Panel', widgetRef: 'Grid-2col', props: { columns: 2, colSpan: 6, rowSpan: 2 } },
+      { id: 'Detail-Field1', widgetRef: 'Text', props: { label: 'Field A', placeholder: 'Value', colSpan: 6 } },
+      { id: 'Detail-Field2', widgetRef: 'Text', props: { label: 'Field B', placeholder: 'Value', colSpan: 6 } },
+      { id: 'Detail-Notes', widgetRef: 'TextArea', props: { label: 'Notes', placeholder: 'Notes', colSpan: 12 } },
+      { id: 'Btn-Update', widgetRef: 'Button', props: { label: 'Update', colSpan: 4, variant: 'strong', tone: 'primary' } }
+    ]
+  },
+  {
+    id: 'dashboard',
+    title: 'Dashboard',
+    desc: 'Cards and table snapshot',
+    components: [
+      { id: 'Row-Cards', widgetRef: 'Grid-3col', props: { columns: 3, colSpan: 12, rowSpan: 1 } },
+      { id: 'Card-1', widgetRef: 'TableLayout', props: { label: 'Metric A', colSpan: 4 } },
+      { id: 'Card-2', widgetRef: 'TableLayout', props: { label: 'Metric B', colSpan: 4 } },
+      { id: 'Card-3', widgetRef: 'TableLayout', props: { label: 'Metric C', colSpan: 4 } },
+      { id: 'Row-Chart', widgetRef: 'Grid-2col', props: { columns: 2, colSpan: 12, rowSpan: 1 } },
+      { id: 'Table-Main', widgetRef: 'Table', props: { label: 'Recent activity', colSpan: 12 } }
+    ]
+  }
+];
+
 export function App() {
   const [config, setConfig] = useState<AppConfig>(mockAppConfig);
   const [componentsByPage, setComponentsByPage] = useState<ComponentsByPage>({});
@@ -99,6 +148,7 @@ export function App() {
   const [leftTab, setLeftTab] = useState<LeftTab>('toolbox');
   const [mainTab, setMainTab] = useState<MainTab>('design');
   const [rightTab, setRightTab] = useState<RightTab>('properties');
+  const [inspectorTab, setInspectorTab] = useState<'layout' | 'style' | 'data' | 'logic' | 'state'>('layout');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [bottomCollapsed, setBottomCollapsed] = useState(false);
@@ -113,6 +163,9 @@ export function App() {
   const [aiMessages, setAiMessages] = useState<Array<{ from: 'user' | 'ai'; text: string }>>([
     { from: 'ai', text: 'Need help? Ask me to scaffold entities, pages, or bindings.' }
   ]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [aiInput, setAiInput] = useState('');
   const [loadingApp, setLoadingApp] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -125,6 +178,15 @@ export function App() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const navWidth = 96;
   const [snapGrid, setSnapGrid] = useState(true);
+  const [connectorTest, setConnectorTest] = useState<ConnectorTestResponse | null>(null);
+  const [workflowRun, setWorkflowRun] = useState<WorkflowExecuteResponse | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
+  const [persona, setPersona] = useState<'internal' | 'enduser'>('internal');
+  const [breakpoint, setBreakpoint] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [previewZoom, setPreviewZoom] = useState<0.75 | 0.9 | 1>(1);
+  const [newPageName, setNewPageName] = useState('');
+  const [newWorkflowName, setNewWorkflowName] = useState('');
   const snap = (v: number) => (snapGrid ? Math.min(100, Math.max(0, Math.round(v / 5) * 5)) : Math.min(100, Math.max(0, v)));
   const stages = ['Entities', 'Connectors', 'Workflows', 'Pages', 'Widgets', 'Permissions', 'Theme/Nav', 'Release'];
   const checklist = useMemo(
@@ -150,6 +212,17 @@ export function App() {
       )};`,
     [config, selectedPage, componentsByPage]
   );
+
+  const gridColumns = useMemo(() => {
+    switch (breakpoint) {
+      case 'tablet':
+        return 8;
+      case 'mobile':
+        return 4;
+      default:
+        return 12;
+    }
+  }, [breakpoint]);
 
   const savePageToStorage = (pageName: string, comps: ComponentsByPage[keyof ComponentsByPage]) => {
     try {
@@ -185,7 +258,7 @@ export function App() {
       {
         id: `${control}-${prev.length + 1}`,
         widgetRef: control,
-        props: { label: control, placeholder: `${control} placeholder` },
+        props: { label: control, placeholder: `${control} placeholder`, colSpan: 4, rowSpan: 1 },
         xPct: posPct?.xPct ?? 10 + prev.length * 2,
         yPct: posPct?.yPct ?? 10 + prev.length * 2
       }
@@ -199,7 +272,7 @@ export function App() {
       {
         id: `${layout}-${prev.length + 1}`,
         widgetRef: layout,
-        props: { columns: layout === 'Grid-2col' ? 2 : 3 },
+        props: { columns: layout === 'Grid-2col' ? 2 : 3, colSpan: 12, rowSpan: 1 },
         xPct: posPct?.xPct ?? 10 + prev.length * 2,
         yPct: posPct?.yPct ?? 10 + prev.length * 2
       }
@@ -274,6 +347,36 @@ export function App() {
 
   const selectedComponent = componentsByPage[selectedPage]?.find((c) => c.id === selectedId) || null;
 
+  useEffect(() => {
+    setConnectorTest(null);
+    setWorkflowRun(null);
+  }, [selectedId, selectedConnectorId, selectedWorkflowId, selectedPage]);
+
+  const bindingChips = (c: ComponentsByPage[keyof ComponentsByPage][number]) => {
+    const chips: string[] = [];
+    if (c.props?.required) chips.push('Required');
+    if (c.props?.connectorId) chips.push(`Connector: ${c.props.connectorId}`);
+    if (c.props?.bindingPath) chips.push(`Path: ${c.props.bindingPath}`);
+    if (c.props?.workflowId) chips.push(`Workflow: ${c.props.workflowId}`);
+    if (c.props?.sampleBody) chips.push('Sample data set');
+    if (c.props?.staticOptions) chips.push('Static options');
+    if (c.props?.optionsLabelKey || c.props?.optionsValueKey) chips.push('Options from data');
+    return chips;
+  };
+
+  const optionList = (c: ComponentsByPage[keyof ComponentsByPage][number]) => {
+    const rawStatic = c.props?.staticOptions as string | undefined;
+    if (rawStatic) {
+      return rawStatic.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    const labelKey = (c.props?.optionsLabelKey as string) || '';
+    const valueKey = (c.props?.optionsValueKey as string) || '';
+    if (labelKey || valueKey) {
+      return [`data.${labelKey || 'label'}`, `data.${valueKey || 'value'}`];
+    }
+    return null;
+  };
+
   const renderControl = (c: ComponentsByPage[keyof ComponentsByPage][number]) => {
     const common = { className: 'control-preview' };
     switch (c.widgetRef) {
@@ -285,10 +388,12 @@ export function App() {
       case 'Select':
       case 'ComboBox':
       case 'MultiSelect':
+        const opts = optionList(c) ?? ['Option 1', 'Option 2'];
         return (
           <select {...common}>
-            <option>Option 1</option>
-            <option>Option 2</option>
+            {opts.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
           </select>
         );
       case 'Radio':
@@ -443,6 +548,159 @@ export function App() {
     setStatusMsg(`Reset ${pageName}`);
   };
 
+  const handleAddPage = () => {
+    const name = newPageName.trim() || `Page${pages.length + 1}`;
+    if (!name) return;
+    const nextPages = Array.from(new Set([...(pages ?? []), name]));
+    setPages(nextPages);
+    setComponentsByPage((prev) => ({ ...prev, [name]: prev[name] ?? [] }));
+    setSelectedPage(name);
+    setNewPageName('');
+    if (currentAppId) {
+      const nextConfig = { ...config, pages: nextPages, pageLayouts: { ...componentsByPage } } as any;
+      setConfig(nextConfig);
+      updateApp(currentAppId, nextConfig, selectedAppName).catch(() => setStatusMsg('Save to backend failed'));
+    }
+  };
+
+  const handleDeletePage = (name: string) => {
+    if (!window.confirm(`Delete page "${name}"?`)) return;
+    setComponentsByPage((prev) => {
+      const { [name]: _, ...rest } = prev;
+      return rest;
+    });
+    const nextPages = pages.filter((p) => p !== name);
+    setPages(nextPages);
+    const nextSelected = nextPages[0] ?? '';
+    setSelectedPage(nextSelected);
+    window.localStorage.removeItem(LOCAL_KEY(config.appId, name));
+    if (currentAppId) {
+      const nextConfig = { ...config, pages: nextPages, pageLayouts: componentsByPage } as any;
+      setConfig(nextConfig);
+      updateApp(currentAppId, nextConfig, selectedAppName).catch(() => setStatusMsg('Save to backend failed'));
+    }
+  };
+
+  const handleTestConnector = async () => {
+    if (!currentAppId) return;
+    const connectorId = (selectedComponent?.props?.connectorId as string) || selectedConnectorId;
+    if (!connectorId) {
+      setStatusMsg('Pick a connector to test');
+      return;
+    }
+    setIsTesting(true);
+    try {
+      const resp = await testConnector(currentAppId, connectorId, {
+        path: String(selectedComponent?.props?.bindingPath ?? '/'),
+        method: String(selectedComponent?.props?.method ?? 'GET'),
+        body: selectedComponent?.props?.sampleBody ?? ''
+      });
+      setConnectorTest(resp);
+      setStatusMsg(`Tested ${connectorId}`);
+    } catch (e: any) {
+      setStatusMsg(e?.message ?? 'Test failed');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleRunWorkflow = async () => {
+    if (!currentAppId) return;
+    const workflowId = (selectedComponent?.props?.workflowId as string) || selectedWorkflowId;
+    if (!workflowId) {
+      setStatusMsg('Pick a workflow to run');
+      return;
+    }
+    setIsRunningWorkflow(true);
+    try {
+      const resp = await executeWorkflow(currentAppId, workflowId, {
+        inputs: (selectedComponent?.props?.workflowInputs as Record<string, unknown>) ?? {},
+        pageRef: selectedPage
+      });
+      setWorkflowRun(resp);
+      setStatusMsg(`Ran workflow ${workflowId}`);
+    } catch (e: any) {
+      setStatusMsg(e?.message ?? 'Run failed');
+    } finally {
+      setIsRunningWorkflow(false);
+    }
+  };
+
+  const applyAiTemplate = () => {
+    if (!selectedPage) return;
+    const template = [
+      { id: 'Section-1', widgetRef: 'Grid-2col', props: { columns: 2, colSpan: 12, rowSpan: 1 } },
+      { id: 'Input-Name', widgetRef: 'Text', props: { label: 'Name', placeholder: 'Enter name', colSpan: 6, required: true } },
+      { id: 'Input-Email', widgetRef: 'Text', props: { label: 'Email', placeholder: 'user@example.com', colSpan: 6, required: true } },
+      { id: 'Input-Status', widgetRef: 'Select', props: { label: 'Status', colSpan: 4, placeholder: 'Pick status', staticOptions: 'New,In Progress,Done' } },
+      { id: 'Input-Notes', widgetRef: 'TextArea', props: { label: 'Notes', placeholder: 'Optional notes', colSpan: 8 } },
+      { id: 'Action-Submit', widgetRef: 'Button', props: { label: 'Submit', colSpan: 3, required: true } },
+      { id: 'Action-Reset', widgetRef: 'Button', props: { label: 'Reset', colSpan: 3 } },
+      { id: 'Table-List', widgetRef: 'Table', props: { label: 'Records', colSpan: 12 } }
+    ];
+    setComponentsByPage((prev) => ({ ...prev, [selectedPage]: template }));
+    setSelectedId('Input-Name');
+    setStatusMsg('Applied AI-generated CRUD template');
+  };
+
+  const applyTemplate = (id: string) => {
+    const tpl = templates.find((t) => t.id === id);
+    if (!tpl || !selectedPage) return;
+    setComponentsByPage((prev) => ({ ...prev, [selectedPage]: tpl.components }));
+    setSelectedId(tpl.components[0]?.id ?? null);
+    setStatusMsg(`Applied template: ${tpl.title}`);
+  };
+
+  const handleAddWorkflow = () => {
+    const name = newWorkflowName.trim() || `Workflow${dataWorkflows.length + 1}`;
+    if (!name || !currentAppId) return;
+    createWorkflow(currentAppId, { name, version: '0.0.1' })
+      .then((res) => {
+        setDataWorkflows((prev) => Array.from(new Set([...prev, res.dto.name ?? name])));
+        setSelectedWorkflowId(res.dto.id ?? res.dto.name ?? name);
+        setStatusMsg(`Workflow created: ${name}`);
+      })
+      .catch(() => setStatusMsg('Create workflow failed'))
+      .finally(() => setNewWorkflowName(''));
+  };
+
+  const handleDeleteWorkflow = (id: string) => {
+    if (!currentAppId) return;
+    if (!window.confirm(`Delete workflow "${id}"?`)) return;
+    deleteWorkflow(currentAppId, id)
+      .then(() => {
+        setDataWorkflows((prev) => prev.filter((w) => w !== id));
+        setSelectedWorkflowId((prev) => (prev === id ? null : prev));
+        setStatusMsg(`Deleted workflow ${id}`);
+      })
+      .catch(() => setStatusMsg('Delete workflow failed'));
+  };
+
+  const sendAiPrompt = async () => {
+    if (!aiInput.trim()) return;
+    const prompt = aiInput.trim();
+    setAiMessages((prev) => [...prev, { from: 'user', text: prompt }]);
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const suggestion = await askAiGenerate(prompt, {
+        appId: currentAppId ?? config.appId,
+        page: selectedPage,
+        connectors: dataConnectors,
+        workflows: dataWorkflows
+      });
+      setAiSuggestion(suggestion);
+      setAiMessages((prev) => [...prev, { from: 'ai', text: suggestion.summary }]);
+    } catch (e: any) {
+      const msg = e?.message ?? 'AI failed';
+      setAiError(msg);
+      setAiMessages((prev) => [...prev, { from: 'ai', text: `AI error: ${msg}` }]);
+    } finally {
+      setAiInput('');
+      setAiLoading(false);
+    }
+  };
+
   const handleTopbarAction = (action: 'new' | 'load' | 'save' | 'delete' | 'test' | 'debug' | 'deploy') => {
     switch (action) {
       case 'new':
@@ -525,6 +783,9 @@ export function App() {
               </button>
               <button className={leftTab === 'data' ? 'active' : ''} onClick={() => setLeftTab('data')}>
                 Data
+              </button>
+              <button className={leftTab === 'templates' ? 'active' : ''} onClick={() => setLeftTab('templates')}>
+                Templates
               </button>
               <button className="collapse" onClick={() => setLeftCollapsed((v) => !v)}>
                 {leftCollapsed ? '▶' : '◀'}
@@ -609,6 +870,17 @@ export function App() {
               {leftTab === 'pages' && (
                 <div className="group">
                   <div className="group-title">Pages</div>
+                  <div className="inline-form">
+                    <input
+                      placeholder="New page name"
+                      value={newPageName}
+                      onChange={(e) => setNewPageName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddPage()}
+                    />
+                    <button className="ghost small" onClick={handleAddPage}>
+                      Add
+                    </button>
+                  </div>
                   <ul className="select-list">
                     {pages.map((p) => (
                       <li
@@ -617,9 +889,18 @@ export function App() {
                         onClick={() => handleSelectPage(p)}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSelectPage(p)}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectPage(p)}
                       >
-                        {p}
+                        <span>{p}</span>
+                        <button
+                          className="ghost small danger"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            handleDeletePage(p);
+                          }}
+                        >
+                          ✕
+                        </button>
                       </li>
                     ))}
                     {pages.length === 0 && <li className="muted">No pages yet</li>}
@@ -629,6 +910,17 @@ export function App() {
               {leftTab === 'workflows' && (
                 <div className="group">
                   <div className="group-title">Workflows</div>
+                  <div className="inline-form">
+                    <input
+                      placeholder="New workflow"
+                      value={newWorkflowName}
+                      onChange={(e) => setNewWorkflowName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddWorkflow()}
+                    />
+                    <button className="ghost small" onClick={handleAddWorkflow}>
+                      Add
+                    </button>
+                  </div>
                   <ul className="select-list">
                     {dataWorkflows.map((w) => (
                       <li
@@ -639,8 +931,27 @@ export function App() {
                           setSelectedConnectorId(null);
                           setSelectedId(null);
                         }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedWorkflowId(w);
+                            setSelectedConnectorId(null);
+                            setSelectedId(null);
+                          }
+                        }}
                       >
-                        {w}
+                        <span>{w}</span>
+                        <button
+                          className="ghost small danger"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            handleDeleteWorkflow(w);
+                          }}
+                        >
+                          ✕
+                        </button>
                       </li>
                     ))}
                     {dataWorkflows.length === 0 && <li className="muted">No workflows yet</li>}
@@ -666,6 +977,19 @@ export function App() {
                     ))}
                     {dataConnectors.length === 0 && <li className="muted">No connectors yet</li>}
                   </ul>
+                </div>
+              )}
+              {leftTab === 'templates' && (
+                <div className="group">
+                  <div className="group-title">Templates</div>
+                  <div className="template-grid">
+                    {templates.map((t) => (
+                      <button key={t.id} className="template-card" onClick={() => applyTemplate(t.id)}>
+                        <div className="template-title">{t.title}</div>
+                        <div className="template-desc">{t.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               </div>
@@ -701,6 +1025,9 @@ export function App() {
                           <button className={mainTab === 'design' ? 'active' : ''} onClick={() => setMainTab('design')}>
                             Design
                           </button>
+                          <button className={mainTab === 'preview' ? 'active' : ''} onClick={() => setMainTab('preview')}>
+                            Preview
+                          </button>
                           <button className={mainTab === 'code' ? 'active' : ''} onClick={() => setMainTab('code')}>
                             Code
                           </button>
@@ -731,9 +1058,22 @@ export function App() {
                         >
                           <div className="canvas-toolbar">
                             <p className="hint">Drag controls to the canvas; position them as desired.</p>
-                            <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
-                              {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
-                            </button>
+                            <div className="canvas-actions-row">
+                              <div className="btn-group">
+                                <button className={`ghost small ${breakpoint === 'desktop' ? 'active' : ''}`} onClick={() => setBreakpoint('desktop')}>
+                                  Desktop
+                                </button>
+                                <button className={`ghost small ${breakpoint === 'tablet' ? 'active' : ''}`} onClick={() => setBreakpoint('tablet')}>
+                                  Tablet
+                                </button>
+                                <button className={`ghost small ${breakpoint === 'mobile' ? 'active' : ''}`} onClick={() => setBreakpoint('mobile')}>
+                                  Mobile
+                                </button>
+                              </div>
+                              <button className="ghost small" onClick={() => setSnapGrid((v) => !v)}>
+                                {snapGrid ? 'Snap: On (5%)' : 'Snap: Off'}
+                              </button>
+                            </div>
                           </div>
                           <div className="chip-row">
                             <span className="chip">App: {currentAppId ?? config.appId}</span>
@@ -747,13 +1087,16 @@ export function App() {
                               </span>
                             ))}
                           </div>
-                          <div className="component-surface">
+                          <div className="component-surface" style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}>
                             {(componentsByPage[selectedPage]?.length ?? 0) === 0 && <div className="empty">No components yet. Drag from the left.</div>}
                             {(componentsByPage[selectedPage] ?? []).map((c) => (
                               <div
                                 key={c.id}
                                 className="component-card"
-                                style={{ left: `${c.xPct ?? 5}%`, top: `${c.yPct ?? 5}%` }}
+                                style={{
+                                  gridColumn: `span ${Math.min(12, Math.max(1, Number(c.props?.colSpan ?? 4)))}`,
+                                  gridRow: `span ${Math.max(1, Number(c.props?.rowSpan ?? 1))}`
+                                }}
                                 draggable
                                 onDragStart={() => onDragStart(c.id)}
                                 onDragOver={(e) => {
@@ -766,6 +1109,13 @@ export function App() {
                               >
                                 <div className="component-title">
                                   <span className="drag-handle">≡</span> {c.widgetRef}
+                                </div>
+                                <div className="chip-row compact">
+                                  {bindingChips(c).map((chip) => (
+                                    <span key={`${c.id}-${chip}`} className="chip muted-chip">
+                                      {chip}
+                                    </span>
+                                  ))}
                                 </div>
                                 <div className="component-body">{renderControl(c)}</div>
                               </div>
@@ -781,6 +1131,74 @@ export function App() {
                             <button type="button" className="ghost" onClick={resetCurrentPage}>
                               Reset page
                             </button>
+                          </div>
+                        </div>
+                      ) : mainTab === 'preview' ? (
+                        <div className="preview-panel">
+                          <div className="preview-toolbar">
+                            <div className="chip-row">
+                              <span className="chip">Persona</span>
+                              <button className={`ghost small ${persona === 'internal' ? 'active' : ''}`} onClick={() => setPersona('internal')}>
+                                Internal
+                              </button>
+                              <button className={`ghost small ${persona === 'enduser' ? 'active' : ''}`} onClick={() => setPersona('enduser')}>
+                                End user
+                              </button>
+                              <span className="chip">Breakpoint</span>
+                              <button className={`ghost small ${breakpoint === 'desktop' ? 'active' : ''}`} onClick={() => setBreakpoint('desktop')}>
+                                Desktop
+                              </button>
+                              <button className={`ghost small ${breakpoint === 'tablet' ? 'active' : ''}`} onClick={() => setBreakpoint('tablet')}>
+                                Tablet
+                              </button>
+                              <button className={`ghost small ${breakpoint === 'mobile' ? 'active' : ''}`} onClick={() => setBreakpoint('mobile')}>
+                                Mobile
+                              </button>
+                              <span className="chip">Zoom</span>
+                              {[1, 0.9, 0.75].map((z) => (
+                                <button
+                                  key={z}
+                                  className={`ghost small ${previewZoom === z ? 'active' : ''}`}
+                                  onClick={() => setPreviewZoom(z as 0.75 | 0.9 | 1)}
+                                >
+                                  {Math.round(z * 100)}%
+                                </button>
+                              ))}
+                            </div>
+                            <div className="muted small">Preview uses mock data and bindings.</div>
+                          </div>
+                          <div className="preview-frame">
+                            <div
+                              className="preview-surface"
+                              style={{
+                                gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                                maxWidth: breakpoint === 'desktop' ? 1280 : breakpoint === 'tablet' ? 920 : 480,
+                                transform: `scale(${previewZoom})`,
+                                transformOrigin: 'top center'
+                              }}
+                            >
+                              {(componentsByPage[selectedPage] ?? []).length === 0 && <div className="empty">Add components to preview.</div>}
+                              {(componentsByPage[selectedPage] ?? []).map((c) => (
+                                <div
+                                  key={`prev-${c.id}`}
+                                  className="preview-block"
+                                  style={{
+                                    gridColumn: `span ${Math.min(12, Math.max(1, Number(c.props?.colSpan ?? 4)))}`,
+                                    gridRow: `span ${Math.max(1, Number(c.props?.rowSpan ?? 1))}`
+                                  }}
+                                >
+                                  <div className="muted small">{c.widgetRef}</div>
+                                  <div className="chip-row compact">
+                                    {bindingChips(c).map((chip) => (
+                                      <span key={`prev-chip-${c.id}-${chip}`} className="chip muted-chip">
+                                        {chip}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div>{renderControl(c)}</div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -815,38 +1233,237 @@ export function App() {
                 isEditor ? (
                   selectedComponent ? (
                     <div className="props-panel">
-                      <div className="prop-field">
-                        <label>Label</label>
-                        <input
-                          value={String(selectedComponent.props?.label ?? '')}
-                          onChange={(e) => updateSelectedProp('label', e.target.value)}
-                        />
+                      <div className="editor-tabs">
+                        {(['layout', 'data', 'logic', 'style', 'state'] as const).map((tab) => (
+                          <button key={tab} className={inspectorTab === tab ? 'active' : ''} onClick={() => setInspectorTab(tab)}>
+                            {tab[0].toUpperCase() + tab.slice(1)}
+                          </button>
+                        ))}
                       </div>
-                      <div className="prop-field">
-                        <label>Placeholder</label>
-                        <input
-                          value={String(selectedComponent.props?.placeholder ?? '')}
-                          onChange={(e) => updateSelectedProp('placeholder', e.target.value)}
-                        />
-                      </div>
-                      <div className="prop-field">
-                        <label>Width</label>
-                        <input
-                          type="number"
-                          value={Number(selectedComponent.props?.width ?? 100)}
-                          onChange={(e) => updateSelectedProp('width', Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="prop-field">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(selectedComponent.props?.required)}
-                            onChange={(e) => updateSelectedProp('required', e.target.checked)}
-                          />{' '}
-                          Required
-                        </label>
-                      </div>
+
+                      {inspectorTab === 'layout' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Label</label>
+                            <input
+                              value={String(selectedComponent.props?.label ?? '')}
+                              onChange={(e) => updateSelectedProp('label', e.target.value)}
+                            />
+                          </div>
+                          <div className="prop-field">
+                            <label>Placeholder</label>
+                            <input
+                              value={String(selectedComponent.props?.placeholder ?? '')}
+                              onChange={(e) => updateSelectedProp('placeholder', e.target.value)}
+                            />
+                          </div>
+                          <div className="field-row">
+                            <div className="prop-field">
+                              <label>Columns span (1-12)</label>
+                              <input
+                                type="number"
+                                value={Number(selectedComponent.props?.colSpan ?? 4)}
+                                min={1}
+                                max={12}
+                                onChange={(e) => updateSelectedProp('colSpan', Math.max(1, Math.min(12, Number(e.target.value))))}
+                              />
+                            </div>
+                            <div className="prop-field">
+                              <label>Row span</label>
+                              <input
+                                type="number"
+                                value={Number(selectedComponent.props?.rowSpan ?? 1)}
+                                min={1}
+                                onChange={(e) => updateSelectedProp('rowSpan', Math.max(1, Number(e.target.value)))}
+                              />
+                            </div>
+                          </div>
+                          <div className="prop-field">
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(selectedComponent.props?.required)}
+                                onChange={(e) => updateSelectedProp('required', e.target.checked)}
+                              />{' '}
+                              Required
+                            </label>
+                          </div>
+                        </>
+                      )}
+
+                      {inspectorTab === 'data' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Connector binding</label>
+                            <select
+                              value={String(selectedComponent.props?.connectorId ?? '')}
+                              onChange={(e) => updateSelectedProp('connectorId', e.target.value)}
+                            >
+                              <option value="">Select connector</option>
+                              {dataConnectors.map((id) => (
+                                <option key={id} value={id}>
+                                  {id}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="prop-field">
+                            <label>Binding path (JSONPath)</label>
+                            <input
+                              value={String(selectedComponent.props?.bindingPath ?? '$')}
+                              onChange={(e) => updateSelectedProp('bindingPath', e.target.value)}
+                            />
+                          </div>
+                          {['Select', 'ComboBox', 'MultiSelect', 'Autocomplete'].includes(selectedComponent.widgetRef) && (
+                            <>
+                              <div className="prop-field">
+                                <label>Static options (comma)</label>
+                                <input
+                                  value={String(selectedComponent.props?.staticOptions ?? '')}
+                                  onChange={(e) => updateSelectedProp('staticOptions', e.target.value)}
+                                />
+                              </div>
+                              {['Select', 'ComboBox', 'MultiSelect'].includes(selectedComponent.widgetRef) && (
+                                <div className="field-row">
+                                  <div className="prop-field">
+                                    <label>Label key (from data)</label>
+                                    <input
+                                      value={String(selectedComponent.props?.optionsLabelKey ?? '')}
+                                      onChange={(e) => updateSelectedProp('optionsLabelKey', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="prop-field">
+                                    <label>Value key (from data)</label>
+                                    <input
+                                      value={String(selectedComponent.props?.optionsValueKey ?? '')}
+                                      onChange={(e) => updateSelectedProp('optionsValueKey', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="prop-field">
+                                    <label>Sample options preview</label>
+                                    <div className="chip-row compact">
+                                      {(optionList(selectedComponent) ?? []).map((o) => (
+                                        <span key={`${selectedComponent.id}-${o}`} className="chip muted-chip">
+                                          {o}
+                                        </span>
+                                      ))}
+                                      {(optionList(selectedComponent) ?? []).length === 0 && <span className="muted small">No options yet</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          <div className="prop-field">
+                            <label>Sample body (for test)</label>
+                            <input
+                              value={String(selectedComponent.props?.sampleBody ?? '')}
+                              onChange={(e) => updateSelectedProp('sampleBody', e.target.value)}
+                            />
+                          </div>
+                          <div className="field-row">
+                            <button className="ghost small" onClick={handleTestConnector} disabled={isTesting || !currentAppId}>
+                              {isTesting ? 'Testing…' : 'Test connector'}
+                            </button>
+                            {connectorTest && <span className="muted small">Status: {connectorTest.status}</span>}
+                          </div>
+                          {connectorTest && (
+                            <div className="json-pane">
+                              <div className="small muted">Response</div>
+                              <pre className="code-view">{JSON.stringify(connectorTest.body, null, 2)}</pre>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {inspectorTab === 'logic' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Workflow action</label>
+                            <select
+                              value={String(selectedComponent.props?.workflowId ?? '')}
+                              onChange={(e) => updateSelectedProp('workflowId', e.target.value)}
+                            >
+                              <option value="">Select workflow</option>
+                              {dataWorkflows.map((id) => (
+                                <option key={id} value={id}>
+                                  {id}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="prop-field">
+                            <label>Workflow inputs (JSON)</label>
+                            <input
+                              value={JSON.stringify(selectedComponent.props?.workflowInputs ?? {})}
+                              onChange={(e) => {
+                                try {
+                                  const parsed = e.target.value ? JSON.parse(e.target.value) : {};
+                                  updateSelectedProp('workflowInputs', parsed);
+                                  setStatusMsg(null);
+                                } catch {
+                                  setStatusMsg('Invalid JSON for workflow inputs');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="field-row">
+                            <button className="ghost small" onClick={handleRunWorkflow} disabled={isRunningWorkflow || !currentAppId}>
+                              {isRunningWorkflow ? 'Running…' : 'Run workflow'}
+                            </button>
+                            {workflowRun && <span className="muted small">Status: {workflowRun.status}</span>}
+                          </div>
+                          {workflowRun && (
+                            <div className="json-pane">
+                              <div className="small muted">Output</div>
+                              <pre className="code-view">{JSON.stringify(workflowRun.output, null, 2)}</pre>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {inspectorTab === 'style' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Variant</label>
+                            <select value={String(selectedComponent.props?.variant ?? 'default')} onChange={(e) => updateSelectedProp('variant', e.target.value)}>
+                              <option value="default">Default</option>
+                              <option value="subtle">Subtle</option>
+                              <option value="strong">Strong</option>
+                            </select>
+                          </div>
+                          <div className="prop-field">
+                            <label>Tone</label>
+                            <select value={String(selectedComponent.props?.tone ?? 'primary')} onChange={(e) => updateSelectedProp('tone', e.target.value)}>
+                              <option value="primary">Primary</option>
+                              <option value="neutral">Neutral</option>
+                              <option value="success">Success</option>
+                              <option value="warning">Warning</option>
+                              <option value="danger">Danger</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      {inspectorTab === 'state' && (
+                        <>
+                          <div className="prop-field">
+                            <label>Local state key</label>
+                            <input
+                              value={String(selectedComponent.props?.stateKey ?? '')}
+                              onChange={(e) => updateSelectedProp('stateKey', e.target.value)}
+                            />
+                          </div>
+                          <div className="prop-field">
+                            <label>Default value</label>
+                            <input
+                              value={String(selectedComponent.props?.defaultValue ?? '')}
+                              onChange={(e) => updateSelectedProp('defaultValue', e.target.value)}
+                            />
+                          </div>
+                        </>
+                      )}
+
                       {selectedComponent.widgetRef === 'Autocomplete' && (
                         <>
                           <div className="prop-field">
@@ -874,7 +1491,7 @@ export function App() {
                       </div>
                       <div className="prop-field">
                         <label>Details</label>
-                        <div className="muted">Configure bindings from canvas coming soon.</div>
+                        <div className="muted">Use the inspector to bind components to this connector.</div>
                       </div>
                     </div>
                   ) : selectedWorkflowId ? (
@@ -904,6 +1521,17 @@ export function App() {
                         {m.text}
                       </div>
                     ))}
+                    {aiError && <div className="ai-bubble secondary">AI error: {aiError}</div>}
+                    {aiSuggestion && (
+                      <div className="ai-bubble">
+                        <div className="strong">{aiSuggestion.title}</div>
+                        <div className="muted small">{aiSuggestion.generatedAt}</div>
+                        <div className="small">{aiSuggestion.summary}</div>
+                        <button className="ghost small" onClick={applyAiTemplate} style={{ marginTop: 6 }}>
+                          Apply AI suggestion to page
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="ai-input-row">
                     <input
@@ -912,23 +1540,15 @@ export function App() {
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && aiInput.trim()) {
-                          const prompt = aiInput.trim();
-                          setAiMessages((prev) => [...prev, { from: 'user', text: prompt }, { from: 'ai', text: 'AI reply coming soon (mock).' }]);
-                          setAiInput('');
-                        }
+                        if (e.key === 'Enter' && aiInput.trim()) sendAiPrompt();
                       }}
                     />
                     <button
                       className="ghost small"
-                      onClick={() => {
-                        if (!aiInput.trim()) return;
-                        const prompt = aiInput.trim();
-                        setAiMessages((prev) => [...prev, { from: 'user', text: prompt }, { from: 'ai', text: 'AI reply coming soon (mock).' }]);
-                        setAiInput('');
-                      }}
+                      onClick={sendAiPrompt}
+                      disabled={aiLoading}
                     >
-                      Send
+                      {aiLoading ? 'Thinking…' : 'Send'}
                     </button>
                   </div>
                 </div>

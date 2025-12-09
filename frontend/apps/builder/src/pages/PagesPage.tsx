@@ -37,7 +37,18 @@ export function PagesPage() {
       ) : (
         <div className="list">
           {pages.map((p) => (
-            <div key={p.name} className="list-row">
+            <div
+              key={p.name}
+              className="list-row"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  remove(p.name);
+                }
+              }}
+            >
               <div>
                 <div className="title">{p.name}</div>
                 <div className="muted">{p.route}</div>

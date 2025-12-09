@@ -32,7 +32,18 @@ export function ThemePage() {
       ) : (
         <div className="list">
           {themes.map((t) => (
-            <div key={t.name} className="list-row">
+            <div
+              key={t.name}
+              className="list-row"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  remove(t.name);
+                }
+              }}
+            >
               <div>
                 <div className="title">{t.name}</div>
                 <div className="muted">

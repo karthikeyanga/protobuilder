@@ -12,8 +12,8 @@ if (!root) {
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <BrowserRouter>
-    <App />
+    <BrowserRouter basename="/builder">
+      <App />
     </BrowserRouter>
   </React.StrictMode>
 );

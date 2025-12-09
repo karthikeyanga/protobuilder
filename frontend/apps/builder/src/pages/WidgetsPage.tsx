@@ -34,7 +34,18 @@ export function WidgetsPage() {
       ) : (
         <div className="list">
           {widgets.map((w) => (
-            <div key={w.name} className="list-row">
+            <div
+              key={w.name}
+              className="list-row"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  remove(w.name);
+                }
+              }}
+            >
               <div>
                 <div className="title">{w.name}</div>
                 <div className="muted">v{w.version}</div>

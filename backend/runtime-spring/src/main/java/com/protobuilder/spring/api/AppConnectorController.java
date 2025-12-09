@@ -5,8 +5,10 @@ import com.protobuilder.spring.service.AppConnectorService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,16 +56,66 @@ public class AppConnectorController {
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    boolean ok = service.delete(appUuid, uuid);
+    return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+  }
+
+  @PostMapping("/{id}/test")
+  public ResponseEntity<TestConnectorResponse> test(
+      @PathVariable("appId") String appId,
+      @PathVariable("id") String id,
+      @RequestBody(required = false) TestConnectorRequest req
+  ) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppConnectorDto dto = service.get(appUuid, uuid);
+    if (dto == null) {
+      return ResponseEntity.notFound().build();
+    }
+    TestConnectorRequest safeReq = req == null ? new TestConnectorRequest(null, null, null, null) : req;
+    var response = new TestConnectorResponse(
+        200,
+        Map.of("x-mock", "proto-builder"),
+        Map.of(
+            "echo", safeReq.body(),
+            "method", safeReq.method() == null ? "GET" : safeReq.method(),
+            "path", safeReq.path() == null ? "/" : safeReq.path(),
+            "connectorName", dto.name(),
+            "version", dto.version()
+        ),
+        "Mock connector test succeeded"
+    );
+    return ResponseEntity.ok(response);
+  }
+
   public record CreateConnectorRequest(
       @NotBlank String name,
       String version,
-      String config
+      Map<String, Object> config
   ) {}
 
   public record UpdateConnectorRequest(
       String name,
       String version,
-      String config
+      Map<String, Object> config
+  ) {}
+
+  public record TestConnectorRequest(
+      String path,
+      String method,
+      Map<String, String> headers,
+      String body
+  ) {}
+
+  public record TestConnectorResponse(
+      int status,
+      Map<String, String> headers,
+      Object body,
+      String message
   ) {}
 }
 

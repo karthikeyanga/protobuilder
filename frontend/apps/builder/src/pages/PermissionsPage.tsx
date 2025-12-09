@@ -34,7 +34,18 @@ export function PermissionsPage() {
       ) : (
         <div className="list">
           {roles.map((r) => (
-            <div key={r.name} className="list-row">
+            <div
+              key={r.name}
+              className="list-row"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  remove(r.name);
+                }
+              }}
+            >
               <div>
                 <div className="title">{r.name}</div>
                 <div className="muted">{r.grants}</div>

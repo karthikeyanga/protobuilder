@@ -29,20 +29,20 @@ public class AppWorkflowService {
   }
 
   @Transactional
-  public AppWorkflowDto create(UUID appId, String name, String version, String config) {
+  public AppWorkflowDto create(UUID appId, String name, String version, java.util.Map<String, Object> config) {
     AppWorkflowRecord rec = new AppWorkflowRecord();
     rec.setId(UUID.randomUUID());
     rec.setAppId(appId);
     rec.setName(name);
     rec.setVersion(version == null || version.isBlank() ? "0.0.1" : version);
-    rec.setConfig(config);
+    rec.setConfig(config == null ? java.util.Collections.emptyMap() : config);
     rec.setCreatedAt(Instant.now());
     rec.setUpdatedAt(rec.getCreatedAt());
     return AppWorkflowMapper.toDto(repo.save(rec));
   }
 
   @Transactional
-  public AppWorkflowDto update(UUID appId, UUID id, String name, String version, String config) {
+  public AppWorkflowDto update(UUID appId, UUID id, String name, String version, java.util.Map<String, Object> config) {
     AppWorkflowRecord rec = repo.findById(id).orElse(null);
     if (rec == null || !rec.getAppId().equals(appId)) return null;
     if (name != null) rec.setName(name);
@@ -50,6 +50,14 @@ public class AppWorkflowService {
     if (config != null) rec.setConfig(config);
     rec.setUpdatedAt(Instant.now());
     return AppWorkflowMapper.toDto(repo.save(rec));
+  }
+
+  @Transactional
+  public boolean delete(UUID appId, UUID id) {
+    AppWorkflowRecord rec = repo.findById(id).orElse(null);
+    if (rec == null || !rec.getAppId().equals(appId)) return false;
+    repo.deleteById(id);
+    return true;
   }
 }
 

@@ -8,7 +8,9 @@ type AppDto = {
   config?: string | null;
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE =
+  (import.meta as any).env?.VITE_API_BASE ??
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
 
 const defaultConfig = (id: string): AppConfig => ({
   appId: id,
@@ -29,12 +31,17 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function fetchApps(): Promise<AppSummary[]> {
-  const res = await fetch(`${API_BASE}/api/apps`);
-  const data = await handle<AppDto[]>(res);
-  if (!Array.isArray(data) || data.length === 0) {
+  try {
+    const res = await fetch(`${API_BASE}/api/apps`);
+    const data = await handle<AppDto[]>(res);
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+    return data.map((d) => ({ id: d.id, name: d.name }));
+  } catch (err) {
+    console.warn('fetchApps failed, returning empty list', err);
     return [];
   }
-  return data.map((d) => ({ id: d.id, name: d.name }));
 }
 
 export async function fetchAppDetail(id: string): Promise<AppConfig | null> {

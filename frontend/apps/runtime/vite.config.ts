@@ -8,6 +8,14 @@ export default defineConfig({
     alias: {
       '@protobuilder/schema': path.resolve(__dirname, '../../packages/schema/src')
     }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 });
 

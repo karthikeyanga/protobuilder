@@ -1,6 +1,8 @@
 import type { AppConfig } from '@protobuilder/schema';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE =
+  (import.meta as any).env?.VITE_API_BASE ??
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
 
 export type EntityField = {
   name: string;
@@ -35,7 +37,7 @@ export type EntityDto = {
   appId: string;
   name: string;
   version: string;
-  config?: string | null;
+  config?: EntityConfig | null;
 };
 
 async function handle<T>(res: Response): Promise<T> {
@@ -59,7 +61,7 @@ export async function createEntity(appId: string, config: EntityConfig) {
   const res = await fetch(`${API_BASE}/api/apps/${appId}/entities`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: config.name, version: config.version, config: JSON.stringify(config) })
+    body: JSON.stringify({ name: config.name, version: config.version, config })
   });
   const dto = await handle<EntityDto>(res);
   return { dto, config: parseConfig(dto.config, dto.name) };
@@ -69,19 +71,23 @@ export async function updateEntity(appId: string, id: string, config: EntityConf
   const res = await fetch(`${API_BASE}/api/apps/${appId}/entities/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: config.name, version: config.version, config: JSON.stringify(config) })
+    body: JSON.stringify({ name: config.name, version: config.version, config })
   });
   const dto = await handle<EntityDto>(res);
   return { dto, config: parseConfig(dto.config, dto.name) };
 }
 
-function parseConfig(raw: string | null | undefined, name: string): EntityConfig {
-  if (!raw) return { name, version: '0.0.1', fields: [] };
-  try {
-    return JSON.parse(raw) as EntityConfig;
-  } catch {
-    return { name, version: '0.0.1', fields: [] };
+export async function deleteEntity(appId: string, id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/apps/${appId}/entities/${id}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text();
+    throw new Error(body || `HTTP ${res.status}`);
   }
+}
+
+function parseConfig(raw: EntityConfig | null | undefined, name: string): EntityConfig {
+  if (!raw) return { name, version: '0.0.1', fields: [] };
+  return raw;
 }
 
 

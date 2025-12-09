@@ -5,8 +5,10 @@ import com.protobuilder.spring.service.AppEntityService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,16 +56,24 @@ public class AppEntityController {
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    boolean ok = service.delete(appUuid, uuid);
+    return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+  }
+
   public record CreateEntityRequest(
       @NotBlank String name,
       String version,
-      String config
+      Map<String, Object> config
   ) {}
 
   public record UpdateEntityRequest(
       String name,
       String version,
-      String config
+      Map<String, Object> config
   ) {}
 }
 

@@ -15,7 +15,10 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
   useEffect(() => {
     fetchApps()
       .then((data) => setApps(data))
-      .catch(() => setError('Failed to load applications'))
+      .catch(() => {
+        setError('Failed to load applications');
+        setApps([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -37,20 +40,14 @@ export function ApplicationsPage({ onSelectApp }: ApplicationsPageProps) {
     }
   };
 
-  if (loading) {
-    return <div className="panel-placeholder">Loading applications...</div>;
-  }
-
-  if (error) {
-    return <div className="panel-placeholder error">{error}</div>;
-  }
-
   return (
     <div className="apps-page">
       <div className="app-hero">
         <div>
           <h2>Applications</h2>
           <p className="muted">Create, open, and manage what you build in ProtoBuilder.</p>
+          {error && <div className="panel-placeholder error">{error}</div>}
+          {loading && !error && <div className="panel-placeholder">Loading applications...</div>}
         </div>
         <button className="primary" onClick={() => navigate('/apps/new')}>
           + New Application

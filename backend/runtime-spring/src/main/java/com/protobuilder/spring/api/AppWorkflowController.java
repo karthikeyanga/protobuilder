@@ -5,8 +5,10 @@ import com.protobuilder.spring.service.AppWorkflowService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,16 +56,61 @@ public class AppWorkflowController {
     return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
   }
 
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable("appId") String appId, @PathVariable("id") String id) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    boolean ok = service.delete(appUuid, uuid);
+    return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+  }
+
+  @PostMapping("/{id}/execute")
+  public ResponseEntity<WorkflowExecuteResponse> execute(
+      @PathVariable("appId") String appId,
+      @PathVariable("id") String id,
+      @RequestBody(required = false) WorkflowExecuteRequest req
+  ) {
+    var appUuid = com.protobuilder.spring.util.PathVars.toUuid(appId, "appId");
+    var uuid = com.protobuilder.spring.util.PathVars.toUuid(id, "id");
+    AppWorkflowDto dto = service.get(appUuid, uuid);
+    if (dto == null) {
+      return ResponseEntity.notFound().build();
+    }
+    WorkflowExecuteRequest safeReq = req == null ? new WorkflowExecuteRequest(null, null) : req;
+    var response = new WorkflowExecuteResponse(
+        200,
+        Map.of(
+            "workflow", dto.name(),
+            "version", dto.version(),
+            "inputs", safeReq.inputs() == null ? Map.of() : safeReq.inputs(),
+            "pageRef", safeReq.pageRef() == null ? "" : safeReq.pageRef()
+        ),
+        "Mock workflow execution completed"
+    );
+    return ResponseEntity.ok(response);
+  }
+
   public record CreateWorkflowRequest(
       @NotBlank String name,
       String version,
-      String config
+      Map<String, Object> config
   ) {}
 
   public record UpdateWorkflowRequest(
       String name,
       String version,
-      String config
+      Map<String, Object> config
+  ) {}
+
+  public record WorkflowExecuteRequest(
+      Map<String, Object> inputs,
+      String pageRef
+  ) {}
+
+  public record WorkflowExecuteResponse(
+      int status,
+      Map<String, Object> output,
+      String message
   ) {}
 }
 

@@ -1,6 +1,7 @@
 package com.protobuilder.core.api;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 public record AppWorkflowDto(
@@ -8,7 +9,7 @@ public record AppWorkflowDto(
     UUID appId,
     String name,
     String version,
-    String config,
+    Map<String, Object> config,
     Instant createdAt,
     Instant updatedAt
 ) {}

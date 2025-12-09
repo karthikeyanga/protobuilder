@@ -28,3 +28,14 @@ mvn clean verify -Pspring    # Spring Boot flavor
 - Only scaffolding poms are present; runtime code to be added later.
 - Profiles are mutually exclusive; runtime modules for the other flavor are inactive per profile.
 
+### Single-process (builder + runtime) hosting
+- Build the frontends once: `cd ../frontend && npm install && npm run build -ws`
+- Run the Spring runtime: `cd backend && mvn spring-boot:run -pl runtime-spring`
+- The runtime will serve:
+  - Builder SPA at `/builder/*`
+  - Generated app/runtime SPA at `/app/*` and `/`
+  - APIs at `/api/**`
+- Static asset locations can be overridden via env vars:
+  - `FRONTEND_BUILDER_DIST` (default `../frontend/apps/builder/dist`)
+  - `FRONTEND_RUNTIME_DIST` (default `../frontend/apps/runtime/dist`)
+

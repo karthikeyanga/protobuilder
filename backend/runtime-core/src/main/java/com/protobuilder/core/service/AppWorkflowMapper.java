@@ -2,6 +2,7 @@ package com.protobuilder.core.service;
 
 import com.protobuilder.core.api.AppWorkflowDto;
 import com.protobuilder.core.model.AppWorkflowRecord;
+import java.util.Map;
 
 public class AppWorkflowMapper {
   public static AppWorkflowDto toDto(AppWorkflowRecord record) {

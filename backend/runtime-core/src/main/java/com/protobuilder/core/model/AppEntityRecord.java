@@ -5,7 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "entities")
@@ -23,8 +26,9 @@ public class AppEntityRecord {
   @Column(nullable = false)
   private String version;
 
-  @Column(columnDefinition = "text")
-  private String config;
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
+  private Map<String, Object> config;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
@@ -64,11 +68,11 @@ public class AppEntityRecord {
     this.version = version;
   }
 
-  public String getConfig() {
+  public Map<String, Object> getConfig() {
     return config;
   }
 
-  public void setConfig(String config) {
+  public void setConfig(Map<String, Object> config) {
     this.config = config;
   }
 

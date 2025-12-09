@@ -71,6 +71,21 @@ export function ConnectorsPage() {
     setDraft(blankConnector());
   };
 
+  const removeSelected = async () => {
+    if (!appId || !selectedId) return;
+    if (!window.confirm('Delete this connector?')) return;
+    try {
+      await deleteConnector(appId, selectedId);
+      setConnectors((prev) => prev.filter((c) => c.id !== selectedId));
+      setSelectedId((prev) => {
+        const remaining = connectors.filter((c) => c.id !== prev);
+        return remaining[0]?.id;
+      });
+    } catch {
+      setError('Delete failed');
+    }
+  };
+
   if (!appId) return <div className="panel-placeholder error">No app selected.</div>;
 
   return (
@@ -81,6 +96,9 @@ export function ConnectorsPage() {
           <button className="ghost small" onClick={newConnector}>+ New Connector</button>
           <button className="ghost small" onClick={save} disabled={saving || !draft.name.trim()}>
             {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button className="ghost small danger" onClick={removeSelected} disabled={!selectedId}>
+            Delete
           </button>
         </div>
       </div>
@@ -94,7 +112,19 @@ export function ConnectorsPage() {
           <div className="entity-list">
             {connectors.length === 0 && <div className="muted">No connectors yet.</div>}
             {connectors.map((c) => (
-              <div key={c.id} className={`list-row ${c.id === selectedId ? 'active' : ''}`} onClick={() => setSelectedId(c.id)}>
+              <div
+                key={c.id}
+                className={`list-row ${c.id === selectedId ? 'active' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedId(c.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setSelectedId(c.id);
+                  }
+                }}
+              >
                 <div>
                   <div className="title">{c.config.name}</div>
                   <div className="muted small">{c.config.kind} · v{c.config.version}</div>
